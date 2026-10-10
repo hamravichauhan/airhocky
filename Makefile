@@ -22,7 +22,8 @@ endif
 SRC = src/main.c src/game.c src/render.c src/input.c src/net.c src/ai.c \
       src/audio.c src/particles.c src/powerup.c src/stats.c \
       src/heatmap.c src/themes.c src/trajectory.c \
-      src/commentary.c src/dynaudio.c
+      src/commentary.c src/dynaudio.c \
+      src/tournament.c src/coach.c
 BIN = airhockey
 
 all: $(BIN)

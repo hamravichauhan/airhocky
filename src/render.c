@@ -3,9 +3,12 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 #include "features.h"
 #include "stats.h"
 #include "themes.h"
+#include "tournament.h"
+#include "coach.h"
 
 void render_init(void) {}
 
@@ -99,7 +102,6 @@ void render_field(const GameState *g)
     DrawCircle((int)g->puck.x + shx, (int)(g->puck.y + top) + shy,
                4, WHITE);
 
-    /* HUD uses theme */
     DrawRectangle(0, 0, FIELD_W, 100, th->hud_bg);
     DrawLine(0, 100, FIELD_W, 100, th->hud_line);
 
@@ -157,25 +159,26 @@ void render_menu(int selected)
     DrawText(title, FIELD_W / 2 - tw / 2, 60, 56, RAYWHITE);
     DrawText("C / SEA Project", FIELD_W / 2 - 70, 118, 16, GRAY);
 
-    const char *items[7] = {
+    const char *items[8] = {
         "Solo vs AI",
         "Local 2-Player",
         "Host LAN Game",
         "Join LAN Game",
         "Time Attack",
+        "Tournament",
         "AI vs AI Demo",
         "Quit"};
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < 8; i++)
     {
         Color c = (i == selected) ? YELLOW : LIGHTGRAY;
-        int iw = MeasureText(items[i], 28);
+        int iw = MeasureText(items[i], 26);
         int x = FIELD_W / 2 - iw / 2;
-        int y = 175 + i * 48;
-        DrawText(items[i], x, y, 28, c);
+        int y = 155 + i * 44;
+        DrawText(items[i], x, y, 26, c);
         if (i == selected)
         {
-            DrawText(">", x - 30, y, 28, YELLOW);
-            DrawRectangle(x - 34, y + 32, iw + 60, 2, YELLOW);
+            DrawText(">", x - 30, y, 26, YELLOW);
+            DrawRectangle(x - 34, y + 30, iw + 60, 2, YELLOW);
         }
     }
     DrawText("W/S/Arrows to navigate, ENTER to select",
@@ -423,14 +426,12 @@ void render_time_attack_hud(float time_left, int score)
     DrawRectangle(0, 0, FIELD_W, 100, (Color){30, 10, 40, 255});
     DrawLine(0, 100, FIELD_W, 100, (Color){200, 100, 255, 200});
 
-    /* Time left — big centered */
     char buf[32];
     snprintf(buf, sizeof buf, "%.1f", time_left);
     int tw = MeasureText(buf, 56);
     Color tc = (time_left < 10.0f) ? RED : RAYWHITE;
     DrawText(buf, FIELD_W / 2 - tw / 2, 15, 56, tc);
 
-    /* Score left */
     DrawText("GOALS", 40, 15, 20, YELLOW);
     snprintf(buf, sizeof buf, "%d", score);
     DrawText(buf, 40, 40, 44, YELLOW);
@@ -469,4 +470,127 @@ void render_time_attack_results(int final_score, int best_score)
     DrawText("ENTER = menu    R = retry",
              FIELD_W / 2 - MeasureText("ENTER = menu    R = retry", 22) / 2,
              540, 22, LIGHTGRAY);
+}
+
+/* ------- tournament ------- */
+
+void render_tournament_hud(const Tournament *t)
+{
+    if (!t->active)
+        return;
+
+    int top = 100;
+
+    const char *fmt = (t->format == TOUR_BO3) ? "BEST OF 3" : "BEST OF 5";
+
+    DrawText(fmt, FIELD_W / 2 - MeasureText(fmt, 14) / 2,
+             top + 4, 14, (Color){180, 200, 220, 180});
+
+    int cx1 = FIELD_W / 4;
+    int cx2 = 3 * FIELD_W / 4;
+    int cy = top + 22;
+
+    for (int i = 0; i < t->wins_needed; i++)
+    {
+        Color c1 = (i < t->wins_p1) ? GREEN : (Color){80, 120, 80, 120};
+        Color c2 = (i < t->wins_p2) ? GREEN : (Color){120, 80, 80, 120};
+
+        DrawCircle(cx1 - 20 + i * 20, cy, 6, c1);
+        DrawCircle(cx2 - 20 + i * 20, cy, 6, c2);
+    }
+
+    char buf[32];
+    snprintf(buf, sizeof buf, "MATCH %d", t->current_match);
+    DrawText(buf, FIELD_W / 2 - MeasureText(buf, 12) / 2,
+             cy - 6, 12, (Color){160, 180, 200, 150});
+}
+
+/* ------- AI coach ------- */
+
+void render_coach_screen(const CoachReport *rep, int winner)
+{
+    DrawRectangleGradientV(0, 0, FIELD_W, FIELD_H + 120,
+                           (Color){10, 20, 40, 255},
+                           (Color){4, 10, 20, 255});
+
+    const char *title = "AI COACH ANALYSIS";
+    int tw = MeasureText(title, 34);
+    DrawText(title, FIELD_W / 2 - tw / 2, 40, 34,
+             (Color){180, 220, 255, 255});
+
+    const char *sub = (winner == 1) ? "You won!" : "You lost.";
+    int sw = MeasureText(sub, 24);
+    Color sc = (winner == 1) ? GREEN : RED;
+    DrawText(sub, FIELD_W / 2 - sw / 2, 90, 24, sc);
+
+    if (!rep->valid || rep->count == 0)
+    {
+        DrawText("Not enough data for analysis.",
+                 FIELD_W / 2 - MeasureText("Not enough data for analysis.", 20) / 2,
+                 300, 20, LIGHTGRAY);
+    }
+    else
+    {
+        int y = 150;
+        for (int i = 0; i < rep->count; i++)
+        {
+            DrawCircle(45, y + 10, 5, YELLOW);
+            const char *line = rep->tips[i];
+            int fs = 18;
+            int max_w = FIELD_W - 80;
+
+            char buf[256];
+            strncpy(buf, line, sizeof buf - 1);
+            buf[sizeof buf - 1] = '\0';
+
+            char *p = buf;
+            char cur_line[128];
+            cur_line[0] = '\0';
+            int cur_len = 0;
+            int cy = y;
+
+            while (*p)
+            {
+                while (*p == ' ')
+                    p++;
+                char word[64];
+                int wi = 0;
+                while (*p && *p != ' ' && wi < 63)
+                    word[wi++] = *p++;
+                word[wi] = '\0';
+                if (wi == 0)
+                    break;
+
+                char test[192];
+                snprintf(test, sizeof test, "%s%s%s",
+                         cur_line, cur_len ? " " : "", word);
+
+                if (MeasureText(test, fs) > max_w)
+                {
+                    DrawText(cur_line, 70, cy, fs, RAYWHITE);
+                    cy += fs + 4;
+                    strncpy(cur_line, word, sizeof cur_line - 1);
+                    cur_line[sizeof cur_line - 1] = '\0';
+                    cur_len = 1;
+                }
+                else
+                {
+                    strncpy(cur_line, test, sizeof cur_line - 1);
+                    cur_line[sizeof cur_line - 1] = '\0';
+                    cur_len = 1;
+                }
+            }
+            if (cur_len)
+            {
+                DrawText(cur_line, 70, cy, fs, RAYWHITE);
+                cy += fs + 4;
+            }
+
+            y = cy + 20;
+        }
+    }
+
+    DrawText("ENTER = menu    R = rematch",
+             FIELD_W / 2 - MeasureText("ENTER = menu    R = rematch", 20) / 2,
+             FIELD_H + 40, 20, LIGHTGRAY);
 }
