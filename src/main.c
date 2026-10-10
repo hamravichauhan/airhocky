@@ -16,6 +16,7 @@
 #include "dynaudio.h"
 #include "tournament.h"
 #include "coach.h"
+#include "replay.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -33,7 +34,8 @@ typedef enum
     SCREEN_TIME_ATTACK,
     SCREEN_TIME_ATTACK_OVER,
     SCREEN_TOURNAMENT_DIFF,
-    SCREEN_COACH
+    SCREEN_COACH,
+    SCREEN_REPLAY_LOADED
 } Screen;
 
 int main(void)
@@ -49,7 +51,7 @@ int main(void)
 
     Screen screen = SCREEN_MENU;
     int menu_sel = 0;
-    const int menu_n = 8;
+    const int menu_n = 9;
 
     GameState game;
     memset(&game, 0, sizeof(game));
@@ -82,6 +84,16 @@ int main(void)
 
     CoachReport coach;
     coach_clear(&coach);
+
+    Replay replay;
+    replay_init(&replay);
+
+    GameState game_before_replay;
+    memset(&game_before_replay, 0, sizeof(game_before_replay));
+    bool had_replay = false;
+
+    Replay loaded_replay;
+    replay_init(&loaded_replay);
 
     bool demo_mode = false;
 
@@ -129,6 +141,7 @@ int main(void)
                     particles_clear();
                     heatmap_init(&heat);
                     heat.visible = true;
+                    replay_init(&replay);
                     demo_mode = false;
                     screen = SCREEN_PLAYING;
                     break;
@@ -149,6 +162,7 @@ int main(void)
                     particles_clear();
                     heatmap_init(&heat);
                     heat.visible = true;
+                    replay_init(&replay);
                     demo_mode = false;
                     ta_time_left = 60.0f;
                     ta_score = 0;
@@ -166,10 +180,33 @@ int main(void)
                     particles_clear();
                     heatmap_init(&heat);
                     heat.visible = false;
+                    replay_init(&replay);
                     demo_mode = true;
                     screen = SCREEN_PLAYING;
                     break;
-                case 7: /* Quit */
+                case 7:
+                { /* Watch Replay */
+                    replay_init(&loaded_replay);
+                    if (replay_load(&loaded_replay.buf, "replay.replay"))
+                    {
+                        loaded_replay.active = true;
+                        loaded_replay.play_start = 0;
+                        loaded_replay.play_idx = 0;
+                        loaded_replay.frame_timer = 0;
+
+                        /* Reset game state so old positions don't show */
+                        memset(&game, 0, sizeof(game));
+
+                        screen = SCREEN_REPLAY_LOADED;
+                        TraceLog(LOG_INFO, "Replay loaded");
+                    }
+                    else
+                    {
+                        TraceLog(LOG_WARNING, "No replay.replay found");
+                    }
+                    break;
+                }
+                case 8: /* Quit */
                     audio_close();
                     CloseAudioDevice();
                     CloseWindow();
@@ -191,6 +228,7 @@ int main(void)
                 particles_clear();
                 heatmap_init(&heat);
                 heat.visible = true;
+                replay_init(&replay);
                 demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
@@ -204,6 +242,7 @@ int main(void)
                 particles_clear();
                 heatmap_init(&heat);
                 heat.visible = true;
+                replay_init(&replay);
                 demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
@@ -221,6 +260,7 @@ int main(void)
                 particles_clear();
                 heatmap_init(&heat);
                 heat.visible = true;
+                replay_init(&replay);
                 demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
@@ -233,6 +273,7 @@ int main(void)
                 particles_clear();
                 heatmap_init(&heat);
                 heat.visible = true;
+                replay_init(&replay);
                 demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
@@ -245,6 +286,7 @@ int main(void)
                 particles_clear();
                 heatmap_init(&heat);
                 heat.visible = true;
+                replay_init(&replay);
                 demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
@@ -261,6 +303,7 @@ int main(void)
                 stats_init(&stats);
                 particles_clear();
                 heatmap_init(&heat);
+                replay_init(&replay);
                 demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
@@ -296,6 +339,7 @@ int main(void)
                     stats_init(&stats);
                     particles_clear();
                     heatmap_init(&heat);
+                    replay_init(&replay);
                     demo_mode = false;
                     screen = SCREEN_PLAYING;
                 }
@@ -321,6 +365,66 @@ int main(void)
                 menu_sel = 0;
                 break;
             }
+
+            /* ---------- REPLAY HANDLING ---------- */
+            /* If a replay is running, don't simulate physics */
+            if (replay_is_active(&replay))
+            {
+                replay_update(&replay, dt);
+
+                if (!replay_is_active(&replay))
+                {
+                    /* Replay just ended → restore saved state */
+                    if (had_replay)
+                    {
+                        game = game_before_replay;
+                        had_replay = false;
+                    }
+                }
+                else
+                {
+                    /* Fetch current replay frame into game state */
+                    ReplayFrame rf;
+                    replay_get_current(&replay, &rf);
+                    game.p1.x = rf.p1x;
+                    game.p1.y = rf.p1y;
+                    game.p2.x = rf.p2x;
+                    game.p2.y = rf.p2y;
+                    game.puck.x = rf.puck_x;
+                    game.puck.y = rf.puck_y;
+                    game.puck.vx = rf.puck_vx;
+                    game.puck.vy = rf.puck_vy;
+                    game.puck_spin = rf.spin;
+                }
+
+                break; /* skip rest of SCREEN_PLAYING update */
+            }
+
+            /* Trigger replay manually */
+            if (IsKeyPressed(KEY_V))
+            {
+                /* Save current state so we can restore it after */
+                game_before_replay = game;
+                had_replay = true;
+
+                replay_start(&replay);
+                /* If replay didn't activate (not enough data), undo */
+                if (!replay_is_active(&replay))
+                {
+                    had_replay = false;
+                }
+                break;
+            }
+
+            /* Save to disk */
+            if (IsKeyPressed(KEY_F5))
+            {
+                if (replay_save(&replay.buf, "replay.replay"))
+                {
+                    TraceLog(LOG_INFO, "Replay saved to replay.replay");
+                }
+            }
+            /* ---------- END REPLAY HANDLING ---------- */
 
             if (is_ta && ta_active)
             {
@@ -429,6 +533,9 @@ int main(void)
                     net_close();
                 }
             }
+
+            /* Record frame into replay buffer */
+            replay_record(&replay, &game);
 
             stats_update(&stats, &game, dt);
             commentary_update(&commentary, dt);
@@ -547,7 +654,6 @@ int main(void)
                 particles_emit_ring(mid, GRAY);
             }
 
-            /* Win — tournament/solo/stats routing */
             if (!is_ta && !demo_mode && game_check_win(&game))
             {
                 audio_play(SFX_WIN, 1.0f);
@@ -567,13 +673,13 @@ int main(void)
                     }
                     else
                     {
-                        /* next match in series */
                         game_init(&game, MODE_LOCAL);
                         powerup_init(&powerups);
                         stats_init(&stats);
                         particles_clear();
                         heatmap_init(&heat);
                         heat.visible = true;
+                        replay_init(&replay);
                         screen = SCREEN_PLAYING;
                     }
                 }
@@ -585,6 +691,48 @@ int main(void)
                 else
                 {
                     screen = SCREEN_STATS;
+                }
+            }
+            break;
+        }
+
+        case SCREEN_REPLAY_LOADED:
+        {
+            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+            {
+
+                screen = SCREEN_MENU;
+                menu_sel = 0;
+                break;
+            }
+
+            if (loaded_replay.active)
+            {
+                loaded_replay.frame_timer += dt;
+                while (loaded_replay.frame_timer >= loaded_replay.frame_period)
+                {
+                    loaded_replay.frame_timer -= loaded_replay.frame_period;
+                    loaded_replay.play_idx++;
+                    if (loaded_replay.play_idx >= loaded_replay.buf.count)
+                    {
+                        loaded_replay.active = false;
+                        break;
+                    }
+                }
+
+                if (loaded_replay.active)
+                {
+                    int idx = (loaded_replay.play_start + loaded_replay.play_idx) % REPLAY_FRAMES;
+                    ReplayFrame *f = &loaded_replay.buf.frames[idx];
+                    game.p1.x = f->p1x;
+                    game.p1.y = f->p1y;
+                    game.p2.x = f->p2x;
+                    game.p2.y = f->p2y;
+                    game.puck.x = f->puck_x;
+                    game.puck.y = f->puck_y;
+                    game.puck.vx = f->puck_vx;
+                    game.puck.vy = f->puck_vy;
+                    game.puck_spin = f->spin;
                 }
             }
             break;
@@ -604,6 +752,7 @@ int main(void)
                 stats_init(&stats);
                 particles_clear();
                 heatmap_init(&heat);
+                replay_init(&replay);
                 screen = SCREEN_PLAYING;
             }
             break;
@@ -623,6 +772,7 @@ int main(void)
                 particles_clear();
                 heatmap_init(&heat);
                 heat.visible = true;
+                replay_init(&replay);
                 ta_time_left = 60.0f;
                 ta_score = 0;
                 ta_active = true;
@@ -647,6 +797,7 @@ int main(void)
                     stats_init(&stats);
                     particles_clear();
                     heatmap_init(&heat);
+                    replay_init(&replay);
                     screen = SCREEN_PLAYING;
                 }
                 else if (game.mode == MODE_SOLO)
@@ -656,6 +807,7 @@ int main(void)
                     stats_init(&stats);
                     particles_clear();
                     heatmap_init(&heat);
+                    replay_init(&replay);
                     screen = SCREEN_PLAYING;
                 }
                 else
@@ -726,15 +878,19 @@ int main(void)
 
         case SCREEN_PLAYING:
             render_field(&game);
-            if (heat.visible)
+            if (heat.visible && !replay_is_active(&replay))
                 heatmap_draw(&heat, 100);
-            trajectory_draw(&game, 100, IsKeyDown(KEY_LEFT_CONTROL));
+            if (!replay_is_active(&replay))
+                trajectory_draw(&game, 100, IsKeyDown(KEY_LEFT_CONTROL));
             particles_draw(100);
-            powerup_draw(&powerups, 100);
+            if (!replay_is_active(&replay))
+                powerup_draw(&powerups, 100);
             if (in_tournament)
                 render_tournament_hud(&tour);
-            render_combo_overlay(&stats);
+            if (!replay_is_active(&replay))
+                render_combo_overlay(&stats);
             commentary_draw(&commentary, 100);
+            render_replay_banner(replay_is_active(&replay), 0);
 
             if (demo_mode)
             {
@@ -742,24 +898,51 @@ int main(void)
                          FIELD_W / 2 - MeasureText("DEMO MODE - Press ESC to stop", 20) / 2,
                          FIELD_H + 30, 20, YELLOW);
             }
+            else if (replay_is_active(&replay))
+            {
+                DrawText("V: replay   F5: save replay",
+                         10, FIELD_H + 130, 16, GRAY);
+            }
             else
             {
                 DrawText(TextFormat("Theme: %s (T)", themes_name(themes_current())),
                          10, FIELD_H + 130, 16, GRAY);
-                DrawText("TAB: heatmap  CTRL: trajectory  SHIFT: spin",
+                DrawText("TAB: heatmap  CTRL: trajectory  SHIFT: spin  V: replay  F5: save",
                          10, FIELD_H + 150, 14, DARKGRAY);
             }
             break;
 
         case SCREEN_TIME_ATTACK:
             render_field(&game);
-            if (heat.visible)
+            if (heat.visible && !replay_is_active(&replay))
                 heatmap_draw(&heat, 100);
             particles_draw(100);
-            powerup_draw(&powerups, 100);
-            render_combo_overlay(&stats);
+            if (!replay_is_active(&replay))
+                powerup_draw(&powerups, 100);
+            if (!replay_is_active(&replay))
+                render_combo_overlay(&stats);
             commentary_draw(&commentary, 100);
-            render_time_attack_hud(ta_time_left, ta_score);
+            if (!replay_is_active(&replay))
+                render_time_attack_hud(ta_time_left, ta_score);
+            render_replay_banner(replay_is_active(&replay), 0);
+            break;
+
+        case SCREEN_REPLAY_LOADED:
+            render_field(&game);
+            particles_draw(100);
+
+            {
+                const char *banner = "WATCHING REPLAY";
+                int bw = MeasureText(banner, 30);
+                int bx = FIELD_W / 2 - bw / 2;
+                int by = 130;
+                DrawRectangle(bx - 20, by - 8, bw + 40, 46,
+                              (Color){0, 0, 0, 160});
+                DrawText(banner, bx, by, 30, (Color){255, 220, 100, 255});
+            }
+
+            DrawText("ESC = exit", FIELD_W / 2 - 60,
+                     FIELD_H + 40, 20, LIGHTGRAY);
             break;
 
         case SCREEN_TIME_ATTACK_OVER:

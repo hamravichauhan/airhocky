@@ -6,6 +6,7 @@
 #include "heatmap.h"
 #include "tournament.h"
 #include "coach.h"
+#include "replay.h"
 
 void render_init(void);
 void render_field(const GameState *g);
@@ -19,5 +20,6 @@ void render_time_attack_hud(float time_left, int score);
 void render_time_attack_results(int final_score, int best_score);
 void render_tournament_hud(const Tournament *t);
 void render_coach_screen(const CoachReport *rep, int winner);
+void render_replay_banner(bool is_replay, int frames_left);
 
 #endif

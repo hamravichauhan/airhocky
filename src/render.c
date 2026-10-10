@@ -594,3 +594,35 @@ void render_coach_screen(const CoachReport *rep, int winner)
              FIELD_W / 2 - MeasureText("ENTER = menu    R = rematch", 20) / 2,
              FIELD_H + 40, 20, LIGHTGRAY);
 }
+
+void render_replay_banner(bool is_replay, int frames_left)
+{
+    if (!is_replay && frames_left <= 0)
+        return;
+
+    int top = 100;
+    int y = top + FIELD_H + 60;
+
+    const char *txt = is_replay ? "REPLAY" : "REC";
+    Color c = is_replay ? (Color){255, 220, 100, 255}
+                        : (Color){255, 80, 80, 220};
+
+    /* pulsing dot */
+    float pulse = 0.6f + 0.4f * sinf(GetTime() * 8.0f);
+    c.a = (unsigned char)(c.a * pulse);
+
+    int fs = is_replay ? 26 : 16;
+    int tw = MeasureText(txt, fs);
+
+    if (is_replay)
+    {
+        DrawText(txt, FIELD_W / 2 - tw / 2, y, fs, c);
+        DrawCircle(FIELD_W / 2 - tw / 2 - 15, y + fs / 2, 6, c);
+        DrawCircle(FIELD_W / 2 + tw / 2 + 15, y + fs / 2, 6, c);
+    }
+    else
+    {
+        DrawText(txt, 30, y, fs, c);
+        DrawCircle(18, y + fs / 2, 5, c);
+    }
+}
