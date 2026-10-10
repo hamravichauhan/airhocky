@@ -9,6 +9,9 @@
 #include "powerup.h"
 #include "stats.h"
 #include "features.h"
+#include "heatmap.h"
+#include "themes.h"
+#include "trajectory.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -22,7 +25,9 @@ typedef enum
     SCREEN_JOIN_INPUT,
     SCREEN_PLAYING,
     SCREEN_GAMEOVER,
-    SCREEN_STATS
+    SCREEN_STATS,
+    SCREEN_TIME_ATTACK,
+    SCREEN_TIME_ATTACK_OVER
 } Screen;
 
 int main(void)
@@ -34,10 +39,11 @@ int main(void)
     InitAudioDevice();
     audio_init();
     particles_init();
+    themes_init();
 
     Screen screen = SCREEN_MENU;
     int menu_sel = 0;
-    const int menu_n = 5;
+    const int menu_n = 6; /* added Time Attack */
 
     GameState game;
     memset(&game, 0, sizeof(game));
@@ -54,6 +60,16 @@ int main(void)
     Records records;
     records_load(&records);
 
+    HeatMap heat;
+    heatmap_init(&heat);
+    heat.visible = true;
+
+    /* Time attack state */
+    float ta_time_left = 60.0f;
+    int ta_score = 0;
+    int ta_best = 0;
+    bool ta_active = false;
+
     char join_ip[64] = "127.0.0.1";
     int ip_len = 9;
 
@@ -63,7 +79,15 @@ int main(void)
         if (dt > 0.05f)
             dt = 0.05f;
 
-        /* ================= UPDATE ================= */
+        /* Global: TAB toggles heatmap, T cycles theme (only when playing) */
+        if (screen == SCREEN_PLAYING)
+        {
+            if (IsKeyPressed(KEY_TAB))
+                heat.visible = !heat.visible;
+            if (IsKeyPressed(KEY_T))
+                themes_next();
+        }
+
         switch (screen)
         {
         case SCREEN_MENU:
@@ -83,6 +107,8 @@ int main(void)
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
+                    heatmap_init(&heat);
+                    heat.visible = true;
                     screen = SCREEN_PLAYING;
                     break;
                 case 2:
@@ -94,7 +120,20 @@ int main(void)
                 case 3:
                     screen = SCREEN_JOIN_INPUT;
                     break;
-                case 4:
+                case 4: /* Time Attack */
+                    game_init(&game, MODE_SOLO);
+                    ai_init(&ai, AI_MEDIUM);
+                    powerup_init(&powerups);
+                    stats_init(&stats);
+                    particles_clear();
+                    heatmap_init(&heat);
+                    heat.visible = true;
+                    ta_time_left = 60.0f;
+                    ta_score = 0;
+                    ta_active = true;
+                    screen = SCREEN_TIME_ATTACK;
+                    break;
+                case 5: /* Quit */
                     audio_close();
                     CloseAudioDevice();
                     CloseWindow();
@@ -113,6 +152,8 @@ int main(void)
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
+                heatmap_init(&heat);
+                heat.visible = true;
                 screen = SCREEN_PLAYING;
             }
             if (IsKeyPressed(KEY_TWO) || IsKeyPressed(KEY_KP_2))
@@ -122,6 +163,8 @@ int main(void)
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
+                heatmap_init(&heat);
+                heat.visible = true;
                 screen = SCREEN_PLAYING;
             }
             if (IsKeyPressed(KEY_THREE) || IsKeyPressed(KEY_KP_3))
@@ -131,6 +174,8 @@ int main(void)
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
+                heatmap_init(&heat);
+                heat.visible = true;
                 screen = SCREEN_PLAYING;
             }
             break;
@@ -145,6 +190,7 @@ int main(void)
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
+                heatmap_init(&heat);
                 screen = SCREEN_PLAYING;
             }
         }
@@ -178,6 +224,7 @@ int main(void)
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
+                    heatmap_init(&heat);
                     screen = SCREEN_PLAYING;
                 }
                 else
@@ -191,7 +238,24 @@ int main(void)
         }
 
         case SCREEN_PLAYING:
+        case SCREEN_TIME_ATTACK:
         {
+            bool is_ta = (screen == SCREEN_TIME_ATTACK);
+
+            if (is_ta && ta_active)
+            {
+                ta_time_left -= dt;
+                if (ta_time_left <= 0)
+                {
+                    ta_time_left = 0;
+                    ta_active = false;
+                    if (ta_score > ta_best)
+                        ta_best = ta_score;
+                    screen = SCREEN_TIME_ATTACK_OVER;
+                    break;
+                }
+            }
+
             bool simulate_powerups =
                 (game.mode == MODE_LOCAL ||
                  game.mode == MODE_SOLO ||
@@ -205,6 +269,21 @@ int main(void)
             game.p1_frozen = powerup_paddle_frozen(&powerups, 1);
             game.p2_frozen = powerup_paddle_frozen(&powerups, 2);
 
+            /* Skill shot spin bias */
+            game.p1_spin_bias = IsKeyDown(KEY_LEFT_SHIFT)
+                                    ? ((game.p1.vx > 0) ? 1.0f : -1.0f)
+                                    : 0.0f;
+            if (game.mode == MODE_LOCAL)
+            {
+                game.p2_spin_bias = IsKeyDown(KEY_RIGHT_SHIFT)
+                                        ? ((game.p2.vx > 0) ? 1.0f : -1.0f)
+                                        : 0.0f;
+            }
+            else
+            {
+                game.p2_spin_bias = 0.0f;
+            }
+
             if (game.mode == MODE_LOCAL)
             {
                 float p1x, p1y, p2x, p2y;
@@ -216,18 +295,15 @@ int main(void)
             {
                 float p1x, p1y;
                 input_get_local_target(&game, 1, &p1x, &p1y);
-
                 ai_update(&ai, &game, dt);
                 float p2x, p2y;
                 ai_get_target(&ai, &p2x, &p2y);
-
                 game_update(&game, dt, p1x, p1y, p2x, p2y);
             }
             else if (game.mode == MODE_HOST)
             {
                 float p1x, p1y;
                 input_get_local_target(&game, 1, &p1x, &p1y);
-
                 float p2x = game.p2.x, p2y = game.p2.y;
                 float rx, ry;
                 while (net_poll_input(&rx, &ry))
@@ -235,10 +311,8 @@ int main(void)
                     p2x = rx;
                     p2y = ry;
                 }
-
                 game_update(&game, dt, p1x, p1y, p2x, p2y);
                 net_send_state(&game);
-
                 if (!net_is_connected())
                 {
                     screen = SCREEN_MENU;
@@ -260,7 +334,6 @@ int main(void)
                 }
             }
 
-            /* Stats & combo */
             stats_update(&stats, &game, dt);
 
             if (game.ev_hit)
@@ -271,9 +344,15 @@ int main(void)
             if (game.ev_goal)
             {
                 stats_on_goal(&stats, game.last_scorer);
+                if (is_ta && game.last_scorer == 1)
+                    ta_score++;
             }
 
-            /* Audio events */
+            /* Heat map */
+            heatmap_record(&heat, game.puck.x, game.puck.y);
+            heatmap_decay(&heat, dt);
+
+            /* Audio */
             if (game.ev_hit)
                 audio_play(SFX_HIT, game.ev_hit_intensity);
             if (game.ev_wall)
@@ -295,25 +374,21 @@ int main(void)
             /* Particles */
             float puck_speed = sqrtf(game.puck.vx * game.puck.vx +
                                      game.puck.vy * game.puck.vy);
-
             if (puck_speed > 80.0f && game.reset_timer <= 0)
             {
                 particles_trail_add((Vector2){game.puck.x, game.puck.y});
             }
-
             if (game.ev_hit && game.ev_hit_pos_valid)
             {
-                Vector2 hit_pos = {game.ev_hit_pos_x, game.ev_hit_pos_y};
-                Vector2 hit_dir = {game.ev_hit_dir_x, game.ev_hit_dir_y};
-                particles_emit_spark(hit_pos, hit_dir, game.ev_hit_intensity);
+                Vector2 hp = {game.ev_hit_pos_x, game.ev_hit_pos_y};
+                Vector2 hd = {game.ev_hit_dir_x, game.ev_hit_dir_y};
+                particles_emit_spark(hp, hd, game.ev_hit_intensity);
             }
-
             if (game.ev_wall && game.ev_wall_pos_valid)
             {
                 Vector2 wp = {game.ev_wall_pos_x, game.ev_wall_pos_y};
                 particles_emit_dust(wp, 5);
             }
-
             if (game.ev_goal)
             {
                 particles_trail_clear();
@@ -322,14 +397,12 @@ int main(void)
                 Color theme = (game.last_scorer == 1) ? BLUE : RED;
                 particles_emit_goal(gp, theme);
             }
-
             if (game.ev_count_tick > 0)
             {
                 Vector2 center = {FIELD_W / 2.0f, FIELD_H / 2.0f};
-                Color ring_c = (game.ev_count_tick == 1) ? YELLOW : RAYWHITE;
-                particles_emit_ring(center, ring_c);
+                Color rc = (game.ev_count_tick == 1) ? YELLOW : RAYWHITE;
+                particles_emit_ring(center, rc);
             }
-
             if (powerups.ev_pickup)
             {
                 audio_play(SFX_GO, 1.0f);
@@ -342,7 +415,6 @@ int main(void)
                               : (Color){255, 100, 100, 255};
                 particles_emit_ring(pos, c);
             }
-
             if (powerups.ev_tie)
             {
                 audio_play(SFX_WALL, 0.6f);
@@ -350,7 +422,8 @@ int main(void)
                 particles_emit_ring(mid, GRAY);
             }
 
-            if (game_check_win(&game))
+            /* Win only in non-time-attack modes */
+            if (!is_ta && game_check_win(&game))
             {
                 audio_play(SFX_WIN, 1.0f);
                 stats.p1_powerups = powerups.p1_pickups;
@@ -360,6 +433,28 @@ int main(void)
             }
             break;
         }
+
+        case SCREEN_TIME_ATTACK_OVER:
+            if (IsKeyPressed(KEY_ENTER))
+            {
+                screen = SCREEN_MENU;
+                menu_sel = 0;
+            }
+            if (IsKeyPressed(KEY_R))
+            {
+                game_init(&game, MODE_SOLO);
+                ai_init(&ai, AI_MEDIUM);
+                powerup_init(&powerups);
+                stats_init(&stats);
+                particles_clear();
+                heatmap_init(&heat);
+                heat.visible = true;
+                ta_time_left = 60.0f;
+                ta_score = 0;
+                ta_active = true;
+                screen = SCREEN_TIME_ATTACK;
+            }
+            break;
 
         case SCREEN_STATS:
             if (IsKeyPressed(KEY_ENTER))
@@ -377,6 +472,7 @@ int main(void)
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
+                    heatmap_init(&heat);
                     screen = SCREEN_PLAYING;
                 }
                 else if (game.mode == MODE_SOLO)
@@ -385,6 +481,7 @@ int main(void)
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
+                    heatmap_init(&heat);
                     screen = SCREEN_PLAYING;
                 }
                 else
@@ -432,9 +529,31 @@ int main(void)
 
         case SCREEN_PLAYING:
             render_field(&game);
+            if (heat.visible)
+                heatmap_draw(&heat, 100);
+            trajectory_draw(&game, 100, IsKeyDown(KEY_LEFT_CONTROL));
             particles_draw(100);
             powerup_draw(&powerups, 100);
             render_combo_overlay(&stats);
+            /* Theme indicator */
+            DrawText(TextFormat("Theme: %s (T)", themes_name(themes_current())),
+                     10, FIELD_H + 130, 16, GRAY);
+            DrawText("TAB: heatmap  CTRL: trajectory  SHIFT: spin",
+                     10, FIELD_H + 150, 14, DARKGRAY);
+            break;
+
+        case SCREEN_TIME_ATTACK:
+            render_field(&game);
+            if (heat.visible)
+                heatmap_draw(&heat, 100);
+            particles_draw(100);
+            powerup_draw(&powerups, 100);
+            render_combo_overlay(&stats);
+            render_time_attack_hud(ta_time_left, ta_score);
+            break;
+
+        case SCREEN_TIME_ATTACK_OVER:
+            render_time_attack_results(ta_score, ta_best);
             break;
 
         case SCREEN_STATS:
@@ -457,7 +576,6 @@ int main(void)
 
     audio_close();
     CloseAudioDevice();
-
     net_close();
     CloseWindow();
     return 0;

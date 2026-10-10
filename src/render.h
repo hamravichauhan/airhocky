@@ -13,4 +13,7 @@ void render_solo_difficulty(int hover);
 void render_combo_overlay(const MatchStats *s);
 void render_stats_screen(const MatchStats *ms, const Records *rec, int winner);
 
+void render_time_attack_hud(float time_left, int score);
+void render_time_attack_results(int final_score, int best_score);
+
 #endif

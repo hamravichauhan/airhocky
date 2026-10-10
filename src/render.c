@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "features.h"
 #include "stats.h"
+#include "themes.h"
 
 void render_init(void) {}
 
@@ -29,6 +30,7 @@ static Color lerp_color(Color a, Color b, float t)
 void render_field(const GameState *g)
 {
     int top = 100;
+    const Theme *th = themes_get(themes_current());
 
     int shx = 0, shy = 0;
     if (g->shake > 0.1f)
@@ -38,31 +40,27 @@ void render_field(const GameState *g)
     }
 
     DrawRectangleGradientV(0, top, FIELD_W, FIELD_H,
-                           (Color){12, 70, 100, 255},
-                           (Color){6, 40, 60, 255});
+                           th->field_top, th->field_bot);
 
-    DrawRectangleLines(0, top, FIELD_W, FIELD_H, (Color){120, 180, 220, 100});
+    DrawRectangleLines(0, top, FIELD_W, FIELD_H, th->center_line);
 
-    DrawLine(0, top + FIELD_H / 2, FIELD_W, top + FIELD_H / 2,
-             (Color){200, 220, 240, 150});
-    DrawCircleLines(FIELD_W / 2, top + FIELD_H / 2, 70,
-                    (Color){200, 220, 240, 130});
+    DrawLine(0, top + FIELD_H / 2, FIELD_W, top + FIELD_H / 2, th->center_line);
+    DrawCircleLines(FIELD_W / 2, top + FIELD_H / 2, 70, th->center_line);
     DrawCircleLines(FIELD_W / 2, top + FIELD_H / 2, 40,
-                    (Color){200, 220, 240, 90});
-    DrawCircle(FIELD_W / 2, top + FIELD_H / 2, 5,
-               (Color){200, 220, 240, 200});
+                    Fade(th->center_line, 0.7f));
+    DrawCircle(FIELD_W / 2, top + FIELD_H / 2, 5, th->center_line);
 
     int gx = (FIELD_W - GOAL_WIDTH) / 2;
 
-    Color topGoal = RED;
+    Color topGoal = th->p2_color;
     if (g->last_scorer == 1 && g->goal_flash > 0)
-        topGoal = lerp_color(RED, WHITE, g->goal_flash * 2.0f);
+        topGoal = lerp_color(topGoal, WHITE, g->goal_flash * 2.0f);
     DrawRectangle(gx, top - 6, GOAL_WIDTH, 6, topGoal);
     DrawRectangle(gx, top, GOAL_WIDTH, WALL_THICK, topGoal);
 
-    Color botGoal = BLUE;
+    Color botGoal = th->p1_color;
     if (g->last_scorer == 2 && g->goal_flash > 0)
-        botGoal = lerp_color(BLUE, WHITE, g->goal_flash * 2.0f);
+        botGoal = lerp_color(botGoal, WHITE, g->goal_flash * 2.0f);
     DrawRectangle(gx, top + FIELD_H - WALL_THICK, GOAL_WIDTH, WALL_THICK, botGoal);
     DrawRectangle(gx, top + FIELD_H, GOAL_WIDTH, 6, botGoal);
 
@@ -77,48 +75,49 @@ void render_field(const GameState *g)
     float r1 = PADDLE_R * g->p1_radius_mult;
     float r2 = PADDLE_R * g->p2_radius_mult;
 
-    Color p1_color = g->p1_frozen ? GRAY : BLUE;
-    Color p2_color = g->p2_frozen ? GRAY : RED;
+    Color p1_color = g->p1_frozen ? GRAY : th->p1_color;
+    Color p2_color = g->p2_frozen ? GRAY : th->p2_color;
 
     DrawCircle((int)g->p1.x + shx, (int)(g->p1.y + top) + shy,
-               r1 + 4, (Color){40, 90, 200, 90});
+               r1 + 4, Fade(p1_color, 0.35f));
     DrawCircle((int)g->p1.x + shx, (int)(g->p1.y + top) + shy, r1, p1_color);
     DrawCircleLines((int)g->p1.x + shx, (int)(g->p1.y + top) + shy, r1, RAYWHITE);
     DrawCircle((int)g->p1.x + shx, (int)(g->p1.y + top) + shy, 5, RAYWHITE);
 
     DrawCircle((int)g->p2.x + shx, (int)(g->p2.y + top) + shy,
-               r2 + 4, (Color){200, 50, 50, 90});
+               r2 + 4, Fade(p2_color, 0.35f));
     DrawCircle((int)g->p2.x + shx, (int)(g->p2.y + top) + shy, r2, p2_color);
     DrawCircleLines((int)g->p2.x + shx, (int)(g->p2.y + top) + shy, r2, RAYWHITE);
     DrawCircle((int)g->p2.x + shx, (int)(g->p2.y + top) + shy, 5, RAYWHITE);
 
     DrawCircle((int)g->puck.x + shx, (int)(g->puck.y + top) + shy,
-               PUCK_R + 6, (Color){255, 220, 100, 60});
+               PUCK_R + 6, Fade(th->puck_color, 0.25f));
     DrawCircle((int)g->puck.x + shx, (int)(g->puck.y + top) + shy,
-               PUCK_R, YELLOW);
+               PUCK_R, th->puck_color);
     DrawCircleLines((int)g->puck.x + shx, (int)(g->puck.y + top) + shy,
-                    PUCK_R, (Color){120, 90, 0, 255});
+                    PUCK_R, (Color){40, 30, 0, 255});
     DrawCircle((int)g->puck.x + shx, (int)(g->puck.y + top) + shy,
-               4, (Color){255, 240, 180, 255});
+               4, WHITE);
 
-    DrawRectangle(0, 0, FIELD_W, 100, (Color){15, 20, 30, 255});
-    DrawLine(0, 100, FIELD_W, 100, (Color){80, 120, 160, 200});
+    /* HUD uses theme */
+    DrawRectangle(0, 0, FIELD_W, 100, th->hud_bg);
+    DrawLine(0, 100, FIELD_W, 100, th->hud_line);
 
     char buf[16];
     snprintf(buf, sizeof buf, "%d", g->score1);
     int s1w = MeasureText(buf, 64);
-    DrawText(buf, FIELD_W / 4 - s1w / 2, 12, 64, BLUE);
+    DrawText(buf, FIELD_W / 4 - s1w / 2, 12, 64, th->p1_color);
 
     snprintf(buf, sizeof buf, "%d", g->score2);
     int s2w = MeasureText(buf, 64);
-    DrawText(buf, 3 * FIELD_W / 4 - s2w / 2, 12, 64, RED);
+    DrawText(buf, 3 * FIELD_W / 4 - s2w / 2, 12, 64, th->p2_color);
 
-    DrawText("P1", FIELD_W / 4 - 14, 78, 16, (Color){140, 170, 210, 255});
-    DrawText("P2", 3 * FIELD_W / 4 - 14, 78, 16, (Color){210, 140, 140, 255});
+    DrawText("P1", FIELD_W / 4 - 14, 78, 16, Fade(th->p1_color, 0.7f));
+    DrawText("P2", 3 * FIELD_W / 4 - 14, 78, 16, Fade(th->p2_color, 0.7f));
 
     DrawText(TextFormat("FIRST TO %d", WIN_SCORE),
              FIELD_W / 2 - MeasureText(TextFormat("FIRST TO %d", WIN_SCORE), 16) / 2,
-             42, 16, (Color){160, 180, 200, 200});
+             42, 16, Fade(th->accent, 0.75f));
 
     if (g->reset_timer > 0)
     {
@@ -158,13 +157,14 @@ void render_menu(int selected)
     DrawText(title, FIELD_W / 2 - tw / 2, 60, 56, RAYWHITE);
     DrawText("C / SEA Project", FIELD_W / 2 - 70, 118, 16, GRAY);
 
-    const char *items[5] = {
+    const char *items[6] = {
         "Solo vs AI",
         "Local 2-Player",
         "Host LAN Game",
         "Join LAN Game",
+        "Time Attack",
         "Quit"};
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 6; i++)
     {
         Color c = (i == selected) ? YELLOW : LIGHTGRAY;
         int iw = MeasureText(items[i], 30);
@@ -415,4 +415,57 @@ void render_stats_screen(const MatchStats *ms, const Records *rec, int winner)
              FIELD_H + 40, 20, LIGHTGRAY);
 
 #undef ROW
+}
+
+void render_time_attack_hud(float time_left, int score)
+{
+    DrawRectangle(0, 0, FIELD_W, 100, (Color){30, 10, 40, 255});
+    DrawLine(0, 100, FIELD_W, 100, (Color){200, 100, 255, 200});
+
+    /* Time left — big centered */
+    char buf[32];
+    snprintf(buf, sizeof buf, "%.1f", time_left);
+    int tw = MeasureText(buf, 56);
+    Color tc = (time_left < 10.0f) ? RED : RAYWHITE;
+    DrawText(buf, FIELD_W / 2 - tw / 2, 15, 56, tc);
+
+    /* Score left */
+    DrawText("GOALS", 40, 15, 20, YELLOW);
+    snprintf(buf, sizeof buf, "%d", score);
+    DrawText(buf, 40, 40, 44, YELLOW);
+}
+
+void render_time_attack_results(int final_score, int best_score)
+{
+    DrawRectangleGradientV(0, 0, FIELD_W, FIELD_H + 120,
+                           (Color){20, 5, 40, 255},
+                           (Color){5, 2, 15, 255});
+
+    const char *title = "TIME'S UP!";
+    int tw = MeasureText(title, 56);
+    DrawText(title, FIELD_W / 2 - tw / 2, 180, 56, (Color){255, 100, 180, 255});
+
+    char buf[64];
+    snprintf(buf, sizeof buf, "You scored: %d", final_score);
+    int sw = MeasureText(buf, 40);
+    DrawText(buf, FIELD_W / 2 - sw / 2, 290, 40, RAYWHITE);
+
+    snprintf(buf, sizeof buf, "Best: %d", best_score);
+    sw = MeasureText(buf, 28);
+    Color bc = (final_score >= best_score && final_score > 0)
+                   ? (Color){255, 220, 100, 255}
+                   : (Color){200, 200, 200, 255};
+    DrawText(buf, FIELD_W / 2 - sw / 2, 360, 28, bc);
+
+    if (final_score >= best_score && final_score > 0)
+    {
+        const char *nrec = "NEW RECORD!";
+        int nw = MeasureText(nrec, 28);
+        DrawText(nrec, FIELD_W / 2 - nw / 2, 410, 28,
+                 (Color){255, 220, 100, 255});
+    }
+
+    DrawText("ENTER = menu    R = retry",
+             FIELD_W / 2 - MeasureText("ENTER = menu    R = retry", 22) / 2,
+             540, 22, LIGHTGRAY);
 }

@@ -78,6 +78,8 @@ typedef struct
     float puck_speed_mult; /* 1.0 = normal, 0.4 = slowed */
     bool p1_frozen;
     bool p2_frozen;
+    float p1_spin_bias; /* -1..1 — negative = spin one way */
+    float p2_spin_bias;
 } GameState;
 
 /* ----- API ----- */
@@ -87,5 +89,6 @@ void game_update(GameState *g, float dt,
                  float p2_tx, float p2_ty);
 void game_reset_puck(GameState *g, int toward_player);
 bool game_check_win(const GameState *g);
+void game_apply_spin_bias(GameState *g, int player, float bias);
 
 #endif

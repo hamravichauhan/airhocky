@@ -19,7 +19,9 @@ else
     LIBS = -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 endif
 
-SRC = src/main.c src/game.c src/render.c src/input.c src/net.c src/ai.c src/audio.c src/particles.c src/powerup.c src/stats.c
+SRC = src/main.c src/game.c src/render.c src/input.c src/net.c src/ai.c \
+      src/audio.c src/particles.c src/powerup.c src/stats.c \
+      src/heatmap.c src/themes.c src/trajectory.c
 BIN = airhockey
 
 all: $(BIN)

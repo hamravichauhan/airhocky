@@ -109,6 +109,16 @@ static void collide_paddle(GameState *g, Body *puck, float *spin,
         float vt = rvx * tx + rvy * ty;
         *spin += vt * 0.0015f;
 
+        /* apply skill-shot spin bias from player */
+        if (pad == &g->p1 && g->p1_spin_bias != 0.0f)
+        {
+            *spin += g->p1_spin_bias * 12.0f;
+        }
+        if (pad == &g->p2 && g->p2_spin_bias != 0.0f)
+        {
+            *spin += g->p2_spin_bias * 12.0f;
+        }
+
         float paddle_speed = sqrtf(len2(pad->vx, pad->vy));
         if (paddle_speed > 50.0f)
         {
@@ -376,4 +386,12 @@ void game_update(GameState *g, float dt,
 bool game_check_win(const GameState *g)
 {
     return g->score1 >= WIN_SCORE || g->score2 >= WIN_SCORE;
+}
+
+void game_apply_spin_bias(GameState *g, int player, float bias)
+{
+    if (player == 1)
+        g->p1_spin_bias = bias;
+    else
+        g->p2_spin_bias = bias;
 }
