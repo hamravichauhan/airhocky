@@ -7,6 +7,8 @@
 #include "ai.h"
 #include "particles.h"
 #include "powerup.h"
+#include "stats.h"
+#include "features.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -48,6 +50,9 @@ int main(void)
     PowerUpState powerups;
     powerup_init(&powerups);
 
+    MatchStats stats;
+    stats_init(&stats);
+
     char join_ip[64] = "127.0.0.1";
     int ip_len = 9;
 
@@ -75,6 +80,7 @@ int main(void)
                 case 1:
                     game_init(&game, MODE_LOCAL);
                     powerup_init(&powerups);
+                    stats_init(&stats);
                     particles_clear();
                     screen = SCREEN_PLAYING;
                     break;
@@ -104,6 +110,7 @@ int main(void)
                 game_init(&game, MODE_SOLO);
                 ai_init(&ai, AI_EASY);
                 powerup_init(&powerups);
+                stats_init(&stats);
                 particles_clear();
                 screen = SCREEN_PLAYING;
             }
@@ -112,6 +119,7 @@ int main(void)
                 game_init(&game, MODE_SOLO);
                 ai_init(&ai, AI_MEDIUM);
                 powerup_init(&powerups);
+                stats_init(&stats);
                 particles_clear();
                 screen = SCREEN_PLAYING;
             }
@@ -120,6 +128,7 @@ int main(void)
                 game_init(&game, MODE_SOLO);
                 ai_init(&ai, AI_HARD);
                 powerup_init(&powerups);
+                stats_init(&stats);
                 particles_clear();
                 screen = SCREEN_PLAYING;
             }
@@ -133,6 +142,7 @@ int main(void)
             {
                 game_init(&game, MODE_HOST);
                 powerup_init(&powerups);
+                stats_init(&stats);
                 particles_clear();
                 screen = SCREEN_PLAYING;
             }
@@ -165,6 +175,7 @@ int main(void)
                 {
                     game_init(&game, MODE_CLIENT);
                     powerup_init(&powerups);
+                    stats_init(&stats);
                     particles_clear();
                     screen = SCREEN_PLAYING;
                 }
@@ -250,7 +261,22 @@ int main(void)
                 }
             }
 
-            /* ---- 3. Audio events ---- */
+            /* ---- 3. Stats & combo tracking ---- */
+            stats_update(&stats, &game, dt);
+
+            if (game.ev_hit)
+            {
+                /* Determine hitter by which half the puck is in */
+                int hitter = (game.puck.y < FIELD_H / 2.0f) ? 2 : 1;
+                stats_on_hit(&stats, hitter);
+            }
+
+            if (game.ev_goal)
+            {
+                stats_on_goal(&stats, game.last_scorer);
+            }
+
+            /* ---- 4. Audio events ---- */
             if (game.ev_hit)
                 audio_play(SFX_HIT, game.ev_hit_intensity);
             if (game.ev_wall)
@@ -262,7 +288,15 @@ int main(void)
             if (game.ev_go)
                 audio_play(SFX_GO, 1.0f);
 
-            /* ---- 4. Particle events ---- */
+            /* Hype sound fires once when threshold is crossed */
+            if (stats.hype_timer > 1.79f && stats.hype != HYPE_NONE)
+            {
+                audio_play(SFX_HYPE, 1.0f);
+                Vector2 mid = {FIELD_W / 2.0f, FIELD_H / 2.0f};
+                particles_emit_ring(mid, (Color){255, 220, 100, 255});
+            }
+
+            /* ---- 5. Particle events ---- */
             float puck_speed = sqrtf(game.puck.vx * game.puck.vx +
                                      game.puck.vy * game.puck.vy);
 
@@ -300,23 +334,11 @@ int main(void)
                 particles_emit_ring(center, ring_c);
             }
 
-            /* ---- 5. Power-up pickup event ---- */
+            /* ---- 6. Power-up pickup event ---- */
             if (powerups.ev_pickup)
             {
                 audio_play(SFX_GO, 1.0f);
                 Vector2 pos;
-                if (powerups.ev_pickup_player == 1)
-                {
-                    pos.x = powerups.drop1.x;
-                    pos.y = powerups.drop1.y;
-                }
-                else
-                {
-                    pos.x = powerups.drop2.x;
-                    pos.y = powerups.drop2.y;
-                }
-                /* Drop already vanished, so use the pre-clear position.
-                   Simpler: use midpoint of field */
                 pos.x = FIELD_W / 2.0f;
                 pos.y = (powerups.ev_pickup_player == 1) ? FIELD_H * 0.7f
                                                          : FIELD_H * 0.3f;
@@ -333,6 +355,7 @@ int main(void)
                 Vector2 mid = {FIELD_W / 2.0f, FIELD_H / 2.0f};
                 particles_emit_ring(mid, GRAY);
             }
+
             if (game_check_win(&game))
             {
                 audio_play(SFX_WIN, 1.0f);
@@ -382,6 +405,7 @@ int main(void)
             render_field(&game);
             particles_draw(100);
             powerup_draw(&powerups, 100);
+            render_combo_overlay(&stats);
             break;
 
         case SCREEN_GAMEOVER:

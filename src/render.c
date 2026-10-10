@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include "features.h"
+#include "stats.h"
 
 void render_init(void) {}
 
@@ -264,4 +266,70 @@ void render_solo_difficulty(int hover)
 
     DrawText("1/2/3 to choose   ESC = back",
              FIELD_W / 2 - 130, FIELD_H + 40, 20, LIGHTGRAY);
+}
+
+void render_combo_overlay(const MatchStats *s)
+{
+#if FEATURE_COMBO_COUNTER
+    if (s->current_rally < 2 && s->hype_timer <= 0)
+        return;
+
+    int top = 100;
+
+    /* Rally counter — subtle, at field's left edge below HUD */
+    if (s->current_rally >= 2)
+    {
+        char buf[32];
+        snprintf(buf, sizeof buf, "RALLY %d", s->current_rally);
+
+        int fs = 22;
+        int tw = MeasureText(buf, fs);
+
+        /* Pulse brighter at higher combos */
+        float intensity = s->current_rally / 30.0f;
+        if (intensity > 1.0f)
+            intensity = 1.0f;
+        unsigned char alpha = (unsigned char)(120 + 100 * intensity);
+        Color c = (Color){255, 220, 100, alpha};
+
+        DrawText(buf, FIELD_W / 2 - tw / 2, top + 10, fs, c);
+    }
+
+    /* Hype text — big, pulsing, center */
+    const char *hype = stats_hype_text(s);
+    if (hype)
+    {
+        float pulse = 0.7f + 0.3f * sinf(s->hype_pulse * 15.0f);
+        float fade = s->hype_timer / 1.8f;
+        if (fade > 1.0f)
+            fade = 1.0f;
+
+        unsigned char a = (unsigned char)(255 * fade * pulse);
+
+        Color c;
+        switch (s->hype)
+        {
+        case HYPE_NICE:
+            c = (Color){100, 255, 140, a};
+            break;
+        case HYPE_GREAT:
+            c = (Color){100, 200, 255, a};
+            break;
+        case HYPE_INSANE:
+            c = (Color){255, 180, 80, a};
+            break;
+        case HYPE_LEGENDARY:
+            c = (Color){255, 80, 180, a};
+            break;
+        default:
+            c = (Color){255, 255, 255, a};
+            break;
+        }
+
+        int fs = 56 + (int)(8 * pulse);
+        int tw = MeasureText(hype, fs);
+        DrawText(hype, FIELD_W / 2 - tw / 2,
+                 top + FIELD_H / 2 + 100, fs, c);
+    }
+#endif
 }

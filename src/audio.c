@@ -11,7 +11,6 @@ static bool s_loaded = false;
 
 /* ---------- wave builders ---------- */
 
-/* Build a mono wave from a float sample buffer (range -1..1) */
 static Wave make_wave(const float *samples, int count)
 {
     Wave w = {0};
@@ -34,7 +33,6 @@ static Wave make_wave(const float *samples, int count)
     return w;
 }
 
-/* Short exponential decay envelope */
 static float env_exp(float t, float decay)
 {
     return expf(-t * decay);
@@ -53,7 +51,7 @@ static Wave gen_hit(void)
     {
         float t = (float)i / SAMPLE_RATE;
         float noise = ((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f;
-        float tone = sinf(2 * PI * 900.0f * t); /* quick "pop" */
+        float tone = sinf(2 * PI * 900.0f * t);
         buf[i] = (noise * 0.4f + tone * 0.6f) * env_exp(t, 80.0f);
     }
     Wave w = make_wave(buf, n);
@@ -88,11 +86,11 @@ static Wave gen_goal(void)
         float t = (float)i / SAMPLE_RATE;
         float freq;
         if (t < 0.12f)
-            freq = 523.25f; /* C5 */
+            freq = 523.25f;
         else if (t < 0.24f)
-            freq = 659.25f; /* E5 */
+            freq = 659.25f;
         else
-            freq = 783.99f; /* G5 */
+            freq = 783.99f;
         float tone = sinf(2 * PI * freq * t) * 0.7f + sinf(2 * PI * freq * 2.0f * t) * 0.2f;
         buf[i] = tone * env_exp(t, 5.0f);
     }
@@ -153,6 +151,26 @@ static Wave gen_win(void)
     return w;
 }
 
+/* Hype — quick rising 4-note zap, ~250ms */
+static Wave gen_hype(void)
+{
+    int n = SAMPLE_RATE * 250 / 1000;
+    float *buf = (float *)MemAlloc(sizeof(float) * n);
+    float freqs[4] = {660.0f, 880.0f, 1100.0f, 1320.0f};
+    for (int i = 0; i < n; i++)
+    {
+        float t = (float)i / SAMPLE_RATE;
+        int note = (int)(t / 0.06f);
+        if (note > 3)
+            note = 3;
+        float tone = sinf(2 * PI * freqs[note] * t) + 0.3f * sinf(2 * PI * freqs[note] * 2.0f * t);
+        buf[i] = tone * env_exp(t - note * 0.06f, 12.0f) * 0.45f;
+    }
+    Wave w = make_wave(buf, n);
+    MemFree(buf);
+    return w;
+}
+
 /* ---------- public API ---------- */
 
 void audio_init(void)
@@ -166,6 +184,7 @@ void audio_init(void)
     s_sounds[SFX_COUNT] = LoadSoundFromWave(gen_count());
     s_sounds[SFX_GO] = LoadSoundFromWave(gen_go());
     s_sounds[SFX_WIN] = LoadSoundFromWave(gen_win());
+    s_sounds[SFX_HYPE] = LoadSoundFromWave(gen_hype());
 
     s_loaded = true;
     TraceLog(LOG_INFO, "Audio: %d sounds generated", SFX_COUNT_TOTAL);
@@ -185,11 +204,15 @@ void audio_play(SfxId id, float intensity)
 
     Sound *s = &s_sounds[id];
 
-    /* Scale volume & pitch for impact sounds */
     if (id == SFX_HIT || id == SFX_WALL)
     {
         SetSoundVolume(*s, 0.3f + 0.7f * intensity);
         SetSoundPitch(*s, 0.85f + 0.4f * intensity);
+    }
+    else if (id == SFX_HYPE)
+    {
+        SetSoundVolume(*s, 0.85f);
+        SetSoundPitch(*s, 1.0f);
     }
     else
     {

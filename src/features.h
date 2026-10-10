@@ -1,0 +1,22 @@
+#ifndef FEATURES_H
+#define FEATURES_H
+
+/* Master feature toggles — set to 0 to disable any feature */
+
+#define FEATURE_COMBO_COUNTER 1
+#define FEATURE_MATCH_STATS 1
+#define FEATURE_HEATMAP 1
+#define FEATURE_TRAJECTORY 1
+#define FEATURE_TIME_ATTACK 1
+#define FEATURE_TOURNAMENT 1
+#define FEATURE_THEMES 1
+#define FEATURE_SKILL_SHOTS 1
+#define FEATURE_ADAPTIVE_AI 1
+#define FEATURE_AI_COACH 1
+#define FEATURE_AI_VS_AI 1
+#define FEATURE_COMMENTARY 1
+#define FEATURE_REPLAY 1
+#define FEATURE_NET_REPLAY 1
+#define FEATURE_DYNAMIC_AUDIO 1
+
+#endif

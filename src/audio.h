@@ -11,6 +11,7 @@ typedef enum
     SFX_COUNT, /* countdown tick (3,2,1) */
     SFX_GO,    /* "GO!" beep */
     SFX_WIN,   /* victory fanfare */
+    SFX_HYPE,
     SFX_COUNT_TOTAL
 } SfxId;
 
