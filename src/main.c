@@ -21,7 +21,8 @@ typedef enum
     SCREEN_HOST_WAIT,
     SCREEN_JOIN_INPUT,
     SCREEN_PLAYING,
-    SCREEN_GAMEOVER
+    SCREEN_GAMEOVER,
+    SCREEN_STATS
 } Screen;
 
 int main(void)
@@ -30,11 +31,8 @@ int main(void)
     SetTargetFPS(60);
     srand((unsigned)GetTime() * 1000);
 
-    /* --- AUDIO SETUP --- */
     InitAudioDevice();
     audio_init();
-
-    /* --- PARTICLES SETUP --- */
     particles_init();
 
     Screen screen = SCREEN_MENU;
@@ -52,6 +50,9 @@ int main(void)
 
     MatchStats stats;
     stats_init(&stats);
+
+    Records records;
+    records_load(&records);
 
     char join_ip[64] = "127.0.0.1";
     int ip_len = 9;
@@ -191,7 +192,6 @@ int main(void)
 
         case SCREEN_PLAYING:
         {
-            /* ---- 1. Tick power-ups & apply modifiers ---- */
             bool simulate_powerups =
                 (game.mode == MODE_LOCAL ||
                  game.mode == MODE_SOLO ||
@@ -205,7 +205,6 @@ int main(void)
             game.p1_frozen = powerup_paddle_frozen(&powerups, 1);
             game.p2_frozen = powerup_paddle_frozen(&powerups, 2);
 
-            /* ---- 2. Game logic per mode ---- */
             if (game.mode == MODE_LOCAL)
             {
                 float p1x, p1y, p2x, p2y;
@@ -261,22 +260,20 @@ int main(void)
                 }
             }
 
-            /* ---- 3. Stats & combo tracking ---- */
+            /* Stats & combo */
             stats_update(&stats, &game, dt);
 
             if (game.ev_hit)
             {
-                /* Determine hitter by which half the puck is in */
                 int hitter = (game.puck.y < FIELD_H / 2.0f) ? 2 : 1;
                 stats_on_hit(&stats, hitter);
             }
-
             if (game.ev_goal)
             {
                 stats_on_goal(&stats, game.last_scorer);
             }
 
-            /* ---- 4. Audio events ---- */
+            /* Audio events */
             if (game.ev_hit)
                 audio_play(SFX_HIT, game.ev_hit_intensity);
             if (game.ev_wall)
@@ -288,7 +285,6 @@ int main(void)
             if (game.ev_go)
                 audio_play(SFX_GO, 1.0f);
 
-            /* Hype sound fires once when threshold is crossed */
             if (stats.hype_timer > 1.79f && stats.hype != HYPE_NONE)
             {
                 audio_play(SFX_HYPE, 1.0f);
@@ -296,7 +292,7 @@ int main(void)
                 particles_emit_ring(mid, (Color){255, 220, 100, 255});
             }
 
-            /* ---- 5. Particle events ---- */
+            /* Particles */
             float puck_speed = sqrtf(game.puck.vx * game.puck.vx +
                                      game.puck.vy * game.puck.vy);
 
@@ -334,7 +330,6 @@ int main(void)
                 particles_emit_ring(center, ring_c);
             }
 
-            /* ---- 6. Power-up pickup event ---- */
             if (powerups.ev_pickup)
             {
                 audio_play(SFX_GO, 1.0f);
@@ -348,7 +343,6 @@ int main(void)
                 particles_emit_ring(pos, c);
             }
 
-            /* Tie — both vanish, no effect */
             if (powerups.ev_tie)
             {
                 audio_play(SFX_WALL, 0.6f);
@@ -359,10 +353,46 @@ int main(void)
             if (game_check_win(&game))
             {
                 audio_play(SFX_WIN, 1.0f);
-                screen = SCREEN_GAMEOVER;
+                stats.p1_powerups = powerups.p1_pickups;
+                stats.p2_powerups = powerups.p2_pickups;
+                records_check_and_update(&stats, &records);
+                screen = SCREEN_STATS;
             }
             break;
         }
+
+        case SCREEN_STATS:
+            if (IsKeyPressed(KEY_ENTER))
+            {
+                net_close();
+                screen = SCREEN_MENU;
+                menu_sel = 0;
+            }
+            if (IsKeyPressed(KEY_R))
+            {
+                net_close();
+                if (game.mode == MODE_LOCAL)
+                {
+                    game_init(&game, MODE_LOCAL);
+                    powerup_init(&powerups);
+                    stats_init(&stats);
+                    particles_clear();
+                    screen = SCREEN_PLAYING;
+                }
+                else if (game.mode == MODE_SOLO)
+                {
+                    game_init(&game, MODE_SOLO);
+                    powerup_init(&powerups);
+                    stats_init(&stats);
+                    particles_clear();
+                    screen = SCREEN_PLAYING;
+                }
+                else
+                {
+                    screen = SCREEN_MENU;
+                }
+            }
+            break;
 
         case SCREEN_GAMEOVER:
             if (IsKeyPressed(KEY_ENTER))
@@ -374,7 +404,6 @@ int main(void)
             break;
         }
 
-        /* --- advance particles every frame --- */
         particles_update(dt);
 
         /* ================= DRAW ================= */
@@ -408,6 +437,13 @@ int main(void)
             render_combo_overlay(&stats);
             break;
 
+        case SCREEN_STATS:
+        {
+            int winner = (stats.goals_p1 > stats.goals_p2) ? 1 : 2;
+            render_stats_screen(&stats, &records, winner);
+            break;
+        }
+
         case SCREEN_GAMEOVER:
         {
             int winner = (game.score1 > game.score2) ? 1 : 2;
@@ -419,7 +455,6 @@ int main(void)
         EndDrawing();
     }
 
-    /* --- CLEANUP --- */
     audio_close();
     CloseAudioDevice();
 

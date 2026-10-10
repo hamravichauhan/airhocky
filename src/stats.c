@@ -2,8 +2,11 @@
 #include "features.h"
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
 
-#if FEATURE_COMBO_COUNTER
+/* ============================================================
+   Match stats
+   ============================================================ */
 
 void stats_init(MatchStats *s)
 {
@@ -24,7 +27,7 @@ void stats_on_hit(MatchStats *s, int player)
     else
         s->p2_hits++;
 
-    /* Trigger hype on exact thresholds */
+#if FEATURE_COMBO_COUNTER
     HypeLevel new_hype = HYPE_NONE;
     if (s->current_rally == 5)
         new_hype = HYPE_NICE;
@@ -41,14 +44,13 @@ void stats_on_hit(MatchStats *s, int player)
         s->hype_timer = 1.8f;
         s->hype_pulse = 0;
     }
+#endif
 }
 
 void stats_on_goal(MatchStats *s, int scoring_player)
 {
-    /* Reset rally */
     s->current_rally = 0;
 
-    /* Score counters */
     if (scoring_player == 1)
     {
         s->goals_p1++;
@@ -76,7 +78,6 @@ void stats_update(MatchStats *s, const GameState *g, float dt)
         }
     }
 
-    /* Track top puck speed */
     float sp = sqrtf(g->puck.vx * g->puck.vx + g->puck.vy * g->puck.vy);
     if (sp > s->top_puck_speed)
         s->top_puck_speed = sp;
@@ -99,29 +100,74 @@ const char *stats_hype_text(const MatchStats *s)
     }
 }
 
-#else /* FEATURE_COMBO_COUNTER disabled — stubs */
+/* ============================================================
+   Persistent records (mini "database")
+   ============================================================ */
 
-void stats_init(MatchStats *s) { memset(s, 0, sizeof(*s)); }
-void stats_on_hit(MatchStats *s, int p)
+void records_load(Records *r)
 {
-    (void)s;
-    (void)p;
-}
-void stats_on_goal(MatchStats *s, int p)
-{
-    (void)s;
-    (void)p;
-}
-void stats_update(MatchStats *s, const GameState *g, float dt)
-{
-    (void)s;
-    (void)g;
-    (void)dt;
-}
-const char *stats_hype_text(const MatchStats *s)
-{
-    (void)s;
-    return NULL;
+    r->best_rally_ever = 0;
+    r->most_goals_p1_ever = 0;
+    r->most_goals_p2_ever = 0;
+    r->fastest_puck_ever = 0;
+    r->matches_played = 0;
+
+    FILE *f = fopen("airhockey.dat", "r");
+    if (!f)
+        return;
+
+    if (fscanf(f, "%d\n%d\n%d\n%f\n%d",
+               &r->best_rally_ever,
+               &r->most_goals_p1_ever,
+               &r->most_goals_p2_ever,
+               &r->fastest_puck_ever,
+               &r->matches_played) != 5)
+    {
+        /* corrupt file — keep defaults */
+    }
+    fclose(f);
 }
 
-#endif
+void records_save(const Records *r)
+{
+    FILE *f = fopen("airhockey.dat", "w");
+    if (!f)
+        return;
+    fprintf(f, "%d\n%d\n%d\n%.2f\n%d\n",
+            r->best_rally_ever,
+            r->most_goals_p1_ever,
+            r->most_goals_p2_ever,
+            r->fastest_puck_ever,
+            r->matches_played);
+    fclose(f);
+}
+
+bool records_check_and_update(MatchStats *ms, Records *r)
+{
+    bool new_record = false;
+
+    if (ms->best_rally > r->best_rally_ever)
+    {
+        r->best_rally_ever = ms->best_rally;
+        new_record = true;
+    }
+    if (ms->goals_p1 > r->most_goals_p1_ever)
+    {
+        r->most_goals_p1_ever = ms->goals_p1;
+        new_record = true;
+    }
+    if (ms->goals_p2 > r->most_goals_p2_ever)
+    {
+        r->most_goals_p2_ever = ms->goals_p2;
+        new_record = true;
+    }
+    if (ms->top_puck_speed > r->fastest_puck_ever)
+    {
+        r->fastest_puck_ever = ms->top_puck_speed;
+        new_record = true;
+    }
+
+    r->matches_played++;
+    records_save(r);
+    return new_record;
+}
