@@ -157,24 +157,25 @@ void render_menu(int selected)
     DrawText(title, FIELD_W / 2 - tw / 2, 60, 56, RAYWHITE);
     DrawText("C / SEA Project", FIELD_W / 2 - 70, 118, 16, GRAY);
 
-    const char *items[6] = {
+    const char *items[7] = {
         "Solo vs AI",
         "Local 2-Player",
         "Host LAN Game",
         "Join LAN Game",
         "Time Attack",
+        "AI vs AI Demo",
         "Quit"};
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < 7; i++)
     {
         Color c = (i == selected) ? YELLOW : LIGHTGRAY;
-        int iw = MeasureText(items[i], 30);
+        int iw = MeasureText(items[i], 28);
         int x = FIELD_W / 2 - iw / 2;
-        int y = 210 + i * 55;
-        DrawText(items[i], x, y, 30, c);
+        int y = 175 + i * 48;
+        DrawText(items[i], x, y, 28, c);
         if (i == selected)
         {
-            DrawText(">", x - 30, y, 30, YELLOW);
-            DrawRectangle(x - 34, y + 34, iw + 60, 2, YELLOW);
+            DrawText(">", x - 30, y, 28, YELLOW);
+            DrawRectangle(x - 34, y + 32, iw + 60, 2, YELLOW);
         }
     }
     DrawText("W/S/Arrows to navigate, ENTER to select",

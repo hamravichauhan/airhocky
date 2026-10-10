@@ -42,7 +42,6 @@ static float env_exp(float t, float decay)
    SFX generators
    ============================================================ */
 
-/* Hit — short burst of noise + click, ~40ms */
 static Wave gen_hit(void)
 {
     int n = SAMPLE_RATE * 40 / 1000;
@@ -59,7 +58,6 @@ static Wave gen_hit(void)
     return w;
 }
 
-/* Wall — softer thud, ~50ms, lower pitch */
 static Wave gen_wall(void)
 {
     int n = SAMPLE_RATE * 50 / 1000;
@@ -76,7 +74,6 @@ static Wave gen_wall(void)
     return w;
 }
 
-/* Goal — rising 3-note fanfare, ~350ms */
 static Wave gen_goal(void)
 {
     int n = SAMPLE_RATE * 350 / 1000;
@@ -99,7 +96,6 @@ static Wave gen_goal(void)
     return w;
 }
 
-/* Countdown — short beep ~80ms */
 static Wave gen_count(void)
 {
     int n = SAMPLE_RATE * 80 / 1000;
@@ -115,7 +111,6 @@ static Wave gen_count(void)
     return w;
 }
 
-/* GO! — higher beep ~120ms */
 static Wave gen_go(void)
 {
     int n = SAMPLE_RATE * 120 / 1000;
@@ -131,7 +126,6 @@ static Wave gen_go(void)
     return w;
 }
 
-/* Win — triumphant 5-note arpeggio, ~700ms */
 static Wave gen_win(void)
 {
     int n = SAMPLE_RATE * 700 / 1000;
@@ -151,7 +145,6 @@ static Wave gen_win(void)
     return w;
 }
 
-/* Hype — quick rising 4-note zap, ~250ms */
 static Wave gen_hype(void)
 {
     int n = SAMPLE_RATE * 250 / 1000;
@@ -165,6 +158,23 @@ static Wave gen_hype(void)
             note = 3;
         float tone = sinf(2 * PI * freqs[note] * t) + 0.3f * sinf(2 * PI * freqs[note] * 2.0f * t);
         buf[i] = tone * env_exp(t - note * 0.06f, 12.0f) * 0.45f;
+    }
+    Wave w = make_wave(buf, n);
+    MemFree(buf);
+    return w;
+}
+
+/* Voice — short synthesized "wah" for commentary */
+static Wave gen_voice(void)
+{
+    int n = SAMPLE_RATE * 220 / 1000;
+    float *buf = (float *)MemAlloc(sizeof(float) * n);
+    for (int i = 0; i < n; i++)
+    {
+        float t = (float)i / SAMPLE_RATE;
+        float f = 220.0f + 180.0f * sinf(t * 30.0f);
+        float tone = sinf(2 * PI * f * t) + 0.4f * sinf(2 * PI * f * 2.0f * t);
+        buf[i] = tone * env_exp(t, 8.0f) * 0.55f;
     }
     Wave w = make_wave(buf, n);
     MemFree(buf);
@@ -185,6 +195,7 @@ void audio_init(void)
     s_sounds[SFX_GO] = LoadSoundFromWave(gen_go());
     s_sounds[SFX_WIN] = LoadSoundFromWave(gen_win());
     s_sounds[SFX_HYPE] = LoadSoundFromWave(gen_hype());
+    s_sounds[SFX_VOICE] = LoadSoundFromWave(gen_voice());
 
     s_loaded = true;
     TraceLog(LOG_INFO, "Audio: %d sounds generated", SFX_COUNT_TOTAL);
@@ -213,6 +224,11 @@ void audio_play(SfxId id, float intensity)
     {
         SetSoundVolume(*s, 0.85f);
         SetSoundPitch(*s, 1.0f);
+    }
+    else if (id == SFX_VOICE)
+    {
+        SetSoundVolume(*s, 0.7f);
+        SetSoundPitch(*s, 1.0f + 0.2f * intensity);
     }
     else
     {

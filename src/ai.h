@@ -44,11 +44,24 @@ typedef struct
     /* Strike windup */
     float strike_x, strike_y;
     bool striking;
+
+    /* Adaptive learning — where the player scores */
+    int p1_goals_left;   /* scored on AI's left side */
+    int p1_goals_right;  /* scored on AI's right side */
+    int p1_goals_center; /* center */
+    int p1_shots_total;
+
+    /* Where the player tends to hit from */
+    float avg_p1_hit_x;
+    int p1_hits_counted;
+
 } AIController;
 
 void ai_init(AIController *ai, AIDifficulty level);
 void ai_update(AIController *ai, const GameState *g, float dt);
 void ai_get_target(const AIController *ai, float *tx, float *ty);
 const char *ai_state_name(AIState s);
+void ai_record_player_goal(AIController *ai, float x);
+void ai_record_player_hit(AIController *ai, float x);
 
 #endif

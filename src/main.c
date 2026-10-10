@@ -12,6 +12,8 @@
 #include "heatmap.h"
 #include "themes.h"
 #include "trajectory.h"
+#include "commentary.h"
+#include "dynaudio.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -43,7 +45,7 @@ int main(void)
 
     Screen screen = SCREEN_MENU;
     int menu_sel = 0;
-    const int menu_n = 6; /* added Time Attack */
+    const int menu_n = 7;
 
     GameState game;
     memset(&game, 0, sizeof(game));
@@ -64,6 +66,14 @@ int main(void)
     heatmap_init(&heat);
     heat.visible = true;
 
+    Commentary commentary;
+    commentary_init(&commentary);
+
+    DynamicAudio dynaudio;
+    dynaudio_init(&dynaudio);
+
+    bool demo_mode = false;
+
     /* Time attack state */
     float ta_time_left = 60.0f;
     int ta_score = 0;
@@ -79,8 +89,8 @@ int main(void)
         if (dt > 0.05f)
             dt = 0.05f;
 
-        /* Global: TAB toggles heatmap, T cycles theme (only when playing) */
-        if (screen == SCREEN_PLAYING)
+        /* Global toggles while playing */
+        if (screen == SCREEN_PLAYING || screen == SCREEN_TIME_ATTACK)
         {
             if (IsKeyPressed(KEY_TAB))
                 heat.visible = !heat.visible;
@@ -109,6 +119,7 @@ int main(void)
                     particles_clear();
                     heatmap_init(&heat);
                     heat.visible = true;
+                    demo_mode = false;
                     screen = SCREEN_PLAYING;
                     break;
                 case 2:
@@ -128,12 +139,24 @@ int main(void)
                     particles_clear();
                     heatmap_init(&heat);
                     heat.visible = true;
+                    demo_mode = false;
                     ta_time_left = 60.0f;
                     ta_score = 0;
                     ta_active = true;
                     screen = SCREEN_TIME_ATTACK;
                     break;
-                case 5: /* Quit */
+                case 5: /* AI vs AI Demo */
+                    game_init(&game, MODE_SOLO);
+                    ai_init(&ai, AI_MEDIUM);
+                    powerup_init(&powerups);
+                    stats_init(&stats);
+                    particles_clear();
+                    heatmap_init(&heat);
+                    heat.visible = false;
+                    demo_mode = true;
+                    screen = SCREEN_PLAYING;
+                    break;
+                case 6: /* Quit */
                     audio_close();
                     CloseAudioDevice();
                     CloseWindow();
@@ -154,6 +177,7 @@ int main(void)
                 particles_clear();
                 heatmap_init(&heat);
                 heat.visible = true;
+                demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
             if (IsKeyPressed(KEY_TWO) || IsKeyPressed(KEY_KP_2))
@@ -165,6 +189,7 @@ int main(void)
                 particles_clear();
                 heatmap_init(&heat);
                 heat.visible = true;
+                demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
             if (IsKeyPressed(KEY_THREE) || IsKeyPressed(KEY_KP_3))
@@ -176,6 +201,7 @@ int main(void)
                 particles_clear();
                 heatmap_init(&heat);
                 heat.visible = true;
+                demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
             break;
@@ -191,6 +217,7 @@ int main(void)
                 stats_init(&stats);
                 particles_clear();
                 heatmap_init(&heat);
+                demo_mode = false;
                 screen = SCREEN_PLAYING;
             }
         }
@@ -225,6 +252,7 @@ int main(void)
                     stats_init(&stats);
                     particles_clear();
                     heatmap_init(&heat);
+                    demo_mode = false;
                     screen = SCREEN_PLAYING;
                 }
                 else
@@ -241,6 +269,15 @@ int main(void)
         case SCREEN_TIME_ATTACK:
         {
             bool is_ta = (screen == SCREEN_TIME_ATTACK);
+
+            /* Demo mode: ESC exits */
+            if (demo_mode && IsKeyPressed(KEY_ESCAPE))
+            {
+                demo_mode = false;
+                screen = SCREEN_MENU;
+                menu_sel = 0;
+                break;
+            }
 
             if (is_ta && ta_active)
             {
@@ -293,11 +330,30 @@ int main(void)
             }
             else if (game.mode == MODE_SOLO)
             {
-                float p1x, p1y;
-                input_get_local_target(&game, 1, &p1x, &p1y);
-                ai_update(&ai, &game, dt);
-                float p2x, p2y;
-                ai_get_target(&ai, &p2x, &p2y);
+                float p1x, p1y, p2x, p2y;
+
+                if (demo_mode)
+                {
+                    /* Both sides AI — reuse AI logic for P2,
+                       drive P1 by simple chase logic */
+                    ai_update(&ai, &game, dt);
+                    ai_get_target(&ai, &p2x, &p2y);
+
+                    p1x = game.puck.x;
+                    p1y = FIELD_H - 100.0f;
+                    if (game.puck.y > FIELD_H / 2.0f &&
+                        game.puck.y < FIELD_H - 60.0f)
+                    {
+                        p1y = game.puck.y - 30.0f;
+                    }
+                }
+                else
+                {
+                    input_get_local_target(&game, 1, &p1x, &p1y);
+                    ai_update(&ai, &game, dt);
+                    ai_get_target(&ai, &p2x, &p2y);
+                }
+
                 game_update(&game, dt, p1x, p1y, p2x, p2y);
             }
             else if (game.mode == MODE_HOST)
@@ -335,24 +391,42 @@ int main(void)
             }
 
             stats_update(&stats, &game, dt);
+            commentary_update(&commentary, dt);
 
             if (game.ev_hit)
             {
                 int hitter = (game.puck.y < FIELD_H / 2.0f) ? 2 : 1;
                 stats_on_hit(&stats, hitter);
+                ai_record_player_hit(&ai, game.puck.x);
+
+                if (game.ev_hit_intensity > 0.75f)
+                    commentary_trigger(&commentary, CMT_POWER_SHOT);
+                else if (game.puck.y < 200.0f && game.puck.vy > 100.0f)
+                    commentary_trigger(&commentary, CMT_GREAT_SAVE);
             }
             if (game.ev_goal)
             {
                 stats_on_goal(&stats, game.last_scorer);
+                ai_record_player_goal(&ai, game.puck.x);
                 if (is_ta && game.last_scorer == 1)
                     ta_score++;
+
+                commentary_trigger(&commentary,
+                                   game.last_scorer == 1 ? CMT_GOAL_P1 : CMT_GOAL_P2);
             }
 
             /* Heat map */
             heatmap_record(&heat, game.puck.x, game.puck.y);
             heatmap_decay(&heat, dt);
 
-            /* Audio */
+            /* Dynamic audio */
+            float intensity = stats.current_rally / 20.0f;
+            if (intensity > 1.0f)
+                intensity = 1.0f;
+            dynaudio_set_intensity(&dynaudio, intensity);
+            dynaudio_update(&dynaudio, dt);
+
+            /* Audio events */
             if (game.ev_hit)
                 audio_play(SFX_HIT, game.ev_hit_intensity);
             if (game.ev_wall)
@@ -369,6 +443,22 @@ int main(void)
                 audio_play(SFX_HYPE, 1.0f);
                 Vector2 mid = {FIELD_W / 2.0f, FIELD_H / 2.0f};
                 particles_emit_ring(mid, (Color){255, 220, 100, 255});
+
+                if (stats.hype == HYPE_GREAT)
+                    commentary_trigger(&commentary, CMT_RALLY_10);
+                if (stats.hype == HYPE_INSANE)
+                    commentary_trigger(&commentary, CMT_RALLY_20);
+                if (stats.hype == HYPE_LEGENDARY)
+                    commentary_trigger(&commentary, CMT_INSANE);
+            }
+
+            /* Play voice beep once per commentary line */
+            if (commentary.timer > 0 &&
+                !commentary.shown &&
+                commentary.timer > commentary.duration - 0.1f)
+            {
+                audio_play(SFX_VOICE, dynaudio_get(&dynaudio));
+                commentary.shown = true;
             }
 
             /* Particles */
@@ -422,8 +512,8 @@ int main(void)
                 particles_emit_ring(mid, GRAY);
             }
 
-            /* Win only in non-time-attack modes */
-            if (!is_ta && game_check_win(&game))
+            /* Win in non-time-attack, non-demo modes */
+            if (!is_ta && !demo_mode && game_check_win(&game))
             {
                 audio_play(SFX_WIN, 1.0f);
                 stats.p1_powerups = powerups.p1_pickups;
@@ -535,11 +625,21 @@ int main(void)
             particles_draw(100);
             powerup_draw(&powerups, 100);
             render_combo_overlay(&stats);
-            /* Theme indicator */
-            DrawText(TextFormat("Theme: %s (T)", themes_name(themes_current())),
-                     10, FIELD_H + 130, 16, GRAY);
-            DrawText("TAB: heatmap  CTRL: trajectory  SHIFT: spin",
-                     10, FIELD_H + 150, 14, DARKGRAY);
+            commentary_draw(&commentary, 100);
+
+            if (demo_mode)
+            {
+                DrawText("DEMO MODE - Press ESC to stop",
+                         FIELD_W / 2 - MeasureText("DEMO MODE - Press ESC to stop", 20) / 2,
+                         FIELD_H + 30, 20, YELLOW);
+            }
+            else
+            {
+                DrawText(TextFormat("Theme: %s (T)", themes_name(themes_current())),
+                         10, FIELD_H + 130, 16, GRAY);
+                DrawText("TAB: heatmap  CTRL: trajectory  SHIFT: spin",
+                         10, FIELD_H + 150, 14, DARKGRAY);
+            }
             break;
 
         case SCREEN_TIME_ATTACK:
@@ -549,6 +649,7 @@ int main(void)
             particles_draw(100);
             powerup_draw(&powerups, 100);
             render_combo_overlay(&stats);
+            commentary_draw(&commentary, 100);
             render_time_attack_hud(ta_time_left, ta_score);
             break;
 

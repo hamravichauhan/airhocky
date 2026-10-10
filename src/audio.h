@@ -12,6 +12,7 @@ typedef enum
     SFX_GO,    /* "GO!" beep */
     SFX_WIN,   /* victory fanfare */
     SFX_HYPE,
+    SFX_VOICE,
     SFX_COUNT_TOTAL
 } SfxId;
 
