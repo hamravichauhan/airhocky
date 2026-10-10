@@ -15,9 +15,9 @@
 /* ----- Physics tuning ----- */
 #define PUCK_MAX_SPEED 1400.0f
 #define PUCK_MIN_SPEED 10.0f
-#define PUCK_FRICTION 0.35f /* per second */
-#define PADDLE_ACCEL 4500.0f
-#define PADDLE_MAX_SPEED 900.0f
+#define PUCK_FRICTION 0.35f
+#define PADDLE_ACCEL 8000.0f
+#define PADDLE_MAX_SPEED 1400.0f
 #define PADDLE_FRICTION 8.0f
 #define PADDLE_MASS 3.0f
 #define PUCK_MASS 1.0f
@@ -28,6 +28,7 @@
 typedef enum
 {
     MODE_LOCAL,
+    MODE_SOLO,
     MODE_HOST,
     MODE_CLIENT
 } GameMode;
@@ -41,18 +42,42 @@ typedef struct
 
 typedef struct
 {
-    Body p1; /* bottom paddle (host) */
-    Body p2; /* top paddle    (client) */
+    Body p1;
+    Body p2;
     Body puck;
-    float puck_spin; /* angular velocity (rad/s) — cosmetic + slight curve */
+    float puck_spin;
     int score1;
     int score2;
     GameMode mode;
     bool running;
-    float reset_timer; /* countdown before puck relaunches */
-    float goal_flash;  /* visual flash duration after a goal */
-    int last_scorer;   /* 1 or 2 — who scored last (for effects) */
-    float shake;       /* screen shake intensity */
+    float reset_timer;
+    float goal_flash;
+    int last_scorer;
+    float shake;
+
+    /* ----- audio event flags ----- */
+    bool ev_hit;
+    float ev_hit_intensity;
+    bool ev_wall;
+    float ev_wall_intensity;
+    bool ev_goal;
+    int ev_count_tick;
+    bool ev_go;
+
+    /* ----- particle event data ----- */
+    bool ev_hit_pos_valid;
+    float ev_hit_pos_x, ev_hit_pos_y;
+    float ev_hit_dir_x, ev_hit_dir_y;
+
+    bool ev_wall_pos_valid;
+    float ev_wall_pos_x, ev_wall_pos_y;
+
+    /* ----- power-up modifiers (set by main.c before game_update) ----- */
+    float p1_radius_mult; /* 1.0 = normal, 1.5 = grown */
+    float p2_radius_mult;
+    float puck_speed_mult; /* 1.0 = normal, 0.4 = slowed */
+    bool p1_frozen;
+    bool p2_frozen;
 } GameState;
 
 /* ----- API ----- */

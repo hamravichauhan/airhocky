@@ -28,7 +28,6 @@ void render_field(const GameState *g)
 {
     int top = 100;
 
-    /* screen shake offset */
     int shx = 0, shy = 0;
     if (g->shake > 0.1f)
     {
@@ -41,7 +40,6 @@ void render_field(const GameState *g)
                            (Color){12, 70, 100, 255},
                            (Color){6, 40, 60, 255});
 
-    /* outer rim */
     DrawRectangleLines(0, top, FIELD_W, FIELD_H, (Color){120, 180, 220, 100});
 
     /* center line + circle */
@@ -78,24 +76,30 @@ void render_field(const GameState *g)
         DrawRectangle(0, top, FIELD_W, FIELD_H, wash);
     }
 
-    /* paddles with rings */
-    /* P1 — blue */
+    /* ---------- paddles (dynamic radius + freeze tint) ---------- */
+    float r1 = PADDLE_R * g->p1_radius_mult;
+    float r2 = PADDLE_R * g->p2_radius_mult;
+
+    Color p1_color = g->p1_frozen ? GRAY : BLUE;
+    Color p2_color = g->p2_frozen ? GRAY : RED;
+
+    /* P1 — blue (gray when frozen) */
     DrawCircle((int)g->p1.x + shx, (int)(g->p1.y + top) + shy,
-               PADDLE_R + 4, (Color){40, 90, 200, 90});
+               r1 + 4, (Color){40, 90, 200, 90});
     DrawCircle((int)g->p1.x + shx, (int)(g->p1.y + top) + shy,
-               PADDLE_R, BLUE);
+               r1, p1_color);
     DrawCircleLines((int)g->p1.x + shx, (int)(g->p1.y + top) + shy,
-                    PADDLE_R, RAYWHITE);
+                    r1, RAYWHITE);
     DrawCircle((int)g->p1.x + shx, (int)(g->p1.y + top) + shy,
                5, RAYWHITE);
 
-    /* P2 — red */
+    /* P2 — red (gray when frozen) */
     DrawCircle((int)g->p2.x + shx, (int)(g->p2.y + top) + shy,
-               PADDLE_R + 4, (Color){200, 50, 50, 90});
+               r2 + 4, (Color){200, 50, 50, 90});
     DrawCircle((int)g->p2.x + shx, (int)(g->p2.y + top) + shy,
-               PADDLE_R, RED);
+               r2, p2_color);
     DrawCircleLines((int)g->p2.x + shx, (int)(g->p2.y + top) + shy,
-                    PADDLE_R, RAYWHITE);
+                    r2, RAYWHITE);
     DrawCircle((int)g->p2.x + shx, (int)(g->p2.y + top) + shy,
                5, RAYWHITE);
 
@@ -110,11 +114,9 @@ void render_field(const GameState *g)
                4, (Color){255, 240, 180, 255});
 
     /* ---------- HUD ---------- */
-    /* score panel background */
     DrawRectangle(0, 0, FIELD_W, 100, (Color){15, 20, 30, 255});
     DrawLine(0, 100, FIELD_W, 100, (Color){80, 120, 160, 200});
 
-    /* scores */
     char buf[16];
     snprintf(buf, sizeof buf, "%d", g->score1);
     int s1w = MeasureText(buf, 64);
@@ -124,11 +126,9 @@ void render_field(const GameState *g)
     int s2w = MeasureText(buf, 64);
     DrawText(buf, 3 * FIELD_W / 4 - s2w / 2, 12, 64, RED);
 
-    /* labels */
     DrawText("P1", FIELD_W / 4 - 14, 78, 16, (Color){140, 170, 210, 255});
     DrawText("P2", 3 * FIELD_W / 4 - 14, 78, 16, (Color){210, 140, 140, 255});
 
-    /* first to 7 */
     DrawText(TextFormat("FIRST TO %d", WIN_SCORE),
              FIELD_W / 2 - MeasureText(TextFormat("FIRST TO %d", WIN_SCORE), 16) / 2,
              42, 16, (Color){160, 180, 200, 200});
@@ -152,7 +152,6 @@ void render_field(const GameState *g)
         }
 
         int tw = MeasureText(txt, 120);
-        /* pulsing alpha */
         float pulse = 0.6f + 0.4f * sinf(GetTime() * 8.0f);
         c.a = (unsigned char)(200 * pulse);
 
@@ -164,33 +163,32 @@ void render_field(const GameState *g)
 
 void render_menu(int selected)
 {
-    /* gradient bg */
     DrawRectangleGradientV(0, 0, FIELD_W, FIELD_H + 120,
                            (Color){10, 25, 45, 255},
                            (Color){3, 8, 18, 255});
 
-    /* title */
     const char *title = "AIR HOCKEY";
     int tw = MeasureText(title, 56);
-    DrawText(title, FIELD_W / 2 - tw / 2, 70, 56, RAYWHITE);
-    DrawText("C / SEA Project", FIELD_W / 2 - 70, 130, 16, GRAY);
+    DrawText(title, FIELD_W / 2 - tw / 2, 60, 56, RAYWHITE);
+    DrawText("C / SEA Project", FIELD_W / 2 - 70, 118, 16, GRAY);
 
-    const char *items[4] = {
+    const char *items[5] = {
+        "Solo vs AI",
         "Local 2-Player",
         "Host LAN Game",
         "Join LAN Game",
         "Quit"};
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 5; i++)
     {
         Color c = (i == selected) ? YELLOW : LIGHTGRAY;
-        int iw = MeasureText(items[i], 32);
+        int iw = MeasureText(items[i], 30);
         int x = FIELD_W / 2 - iw / 2;
-        int y = 240 + i * 60;
-        DrawText(items[i], x, y, 32, c);
+        int y = 210 + i * 55;
+        DrawText(items[i], x, y, 30, c);
         if (i == selected)
         {
-            DrawText(">", x - 30, y, 32, YELLOW);
-            DrawRectangle(x - 34, y + 36, iw + 60, 2, YELLOW);
+            DrawText(">", x - 30, y, 30, YELLOW);
+            DrawRectangle(x - 34, y + 34, iw + 60, 2, YELLOW);
         }
     }
     DrawText("W/S/Arrows to navigate, ENTER to select",
@@ -227,8 +225,43 @@ void render_waiting_screen(const char *msg)
                            (Color){3, 8, 18, 255});
     DrawText(msg, 40, 350, 24, RAYWHITE);
 
-    /* pulse dot */
     float t = GetTime();
     int r = 6 + (int)(4 * (0.5f + 0.5f * sinf(t * 4)));
     DrawCircle(30, 358, r, GREEN);
+}
+
+void render_solo_difficulty(int hover)
+{
+    (void)hover;
+    DrawRectangleGradientV(0, 0, FIELD_W, FIELD_H + 120,
+                           (Color){10, 25, 45, 255},
+                           (Color){3, 8, 18, 255});
+
+    const char *title = "SELECT DIFFICULTY";
+    int tw = MeasureText(title, 40);
+    DrawText(title, FIELD_W / 2 - tw / 2, 120, 40, RAYWHITE);
+
+    const char *items[3] = {
+        "1  -  Easy",
+        "2  -  Medium",
+        "3  -  Hard"};
+    const char *descs[3] = {
+        "Slow, forgiving, no prediction",
+        "Balanced, short lookahead",
+        "Fast, predictive, aggressive"};
+    Color cols[3] = {GREEN, YELLOW, RED};
+
+    for (int i = 0; i < 3; i++)
+    {
+        int iw = MeasureText(items[i], 36);
+        int x = FIELD_W / 2 - iw / 2;
+        int y = 250 + i * 90;
+        DrawText(items[i], x, y, 36, cols[i]);
+
+        int dw = MeasureText(descs[i], 18);
+        DrawText(descs[i], FIELD_W / 2 - dw / 2, y + 44, 18, GRAY);
+    }
+
+    DrawText("1/2/3 to choose   ESC = back",
+             FIELD_W / 2 - 130, FIELD_H + 40, 20, LIGHTGRAY);
 }

@@ -1,7 +1,7 @@
 #include "game.h"
 #include <string.h>
 #include <math.h>
-#include <stdlib.h> // ← ADD THIS
+#include <stdlib.h>
 
 /* ---------- helpers ---------- */
 
@@ -23,13 +23,12 @@ static void clamp_speed(Body *b, float max_speed)
     }
 }
 
-/* Move paddle toward target with acceleration + friction, clamp to half */
-static void update_paddle(Body *pad, float tx, float ty, bool is_p1, float dt)
+static void update_paddle(Body *pad, float tx, float ty, bool is_p1,
+                          float dt, float radius)
 {
     float ax = (tx - pad->x);
     float ay = (ty - pad->y);
 
-    /* deadzone so tiny cursor jitter doesn't jiggle paddle */
     if (len2(ax, ay) < 4.0f)
     {
         pad->vx *= 0.7f;
@@ -44,7 +43,6 @@ static void update_paddle(Body *pad, float tx, float ty, bool is_p1, float dt)
         pad->vy += ay * dt;
     }
 
-    /* friction */
     pad->vx -= pad->vx * PADDLE_FRICTION * dt;
     pad->vy -= pad->vy * PADDLE_FRICTION * dt;
 
@@ -53,40 +51,36 @@ static void update_paddle(Body *pad, float tx, float ty, bool is_p1, float dt)
     pad->x += pad->vx * dt;
     pad->y += pad->vy * dt;
 
-    /* Clamp to own half + walls */
     if (is_p1)
     {
-        pad->y = clampf(pad->y, FIELD_H / 2.0f + PADDLE_R + WALL_THICK,
-                        FIELD_H - PADDLE_R - WALL_THICK);
+        pad->y = clampf(pad->y, FIELD_H / 2.0f + radius + WALL_THICK,
+                        FIELD_H - radius - WALL_THICK);
     }
     else
     {
-        pad->y = clampf(pad->y, PADDLE_R + WALL_THICK,
-                        FIELD_H / 2.0f - PADDLE_R - WALL_THICK);
+        pad->y = clampf(pad->y, radius + WALL_THICK,
+                        FIELD_H / 2.0f - radius - WALL_THICK);
     }
-    pad->x = clampf(pad->x, PADDLE_R + WALL_THICK,
-                    FIELD_W - PADDLE_R - WALL_THICK);
+    pad->x = clampf(pad->x, radius + WALL_THICK,
+                    FIELD_W - radius - WALL_THICK);
 
-    /* zero velocity if we hit a wall (so paddle velocity stays honest) */
-    if (pad->x <= PADDLE_R + WALL_THICK + 0.1f && pad->vx < 0)
+    if (pad->x <= radius + WALL_THICK + 0.1f && pad->vx < 0)
         pad->vx = 0;
-    if (pad->x >= FIELD_W - PADDLE_R - WALL_THICK - 0.1f && pad->vx > 0)
+    if (pad->x >= FIELD_W - radius - WALL_THICK - 0.1f && pad->vx > 0)
         pad->vx = 0;
-    if (is_p1 && pad->y >= FIELD_H - PADDLE_R - WALL_THICK - 0.1f && pad->vy > 0)
+    if (is_p1 && pad->y >= FIELD_H - radius - WALL_THICK - 0.1f && pad->vy > 0)
         pad->vy = 0;
-    if (!is_p1 && pad->y <= PADDLE_R + WALL_THICK + 0.1f && pad->vy < 0)
+    if (!is_p1 && pad->y <= radius + WALL_THICK + 0.1f && pad->vy < 0)
         pad->vy = 0;
 }
 
-/* Elastic collision between puck (mass PUCK_MASS) and paddle (mass PADDLE_MASS).
-   Paddle treated as infinitely heavy relative to puck for stability,
-   but we add paddle velocity contribution for "flick" feel. */
-static void collide_paddle(Body *puck, float *spin, const Body *pad)
+static void collide_paddle(GameState *g, Body *puck, float *spin,
+                           const Body *pad, float pad_radius)
 {
     float dx = puck->x - pad->x;
     float dy = puck->y - pad->y;
     float dist2 = dx * dx + dy * dy;
-    float rsum = PUCK_R + PADDLE_R;
+    float rsum = PUCK_R + pad_radius;
 
     if (dist2 >= rsum * rsum)
         return;
@@ -97,29 +91,24 @@ static void collide_paddle(Body *puck, float *spin, const Body *pad)
     float nx = dx / dist;
     float ny = dy / dist;
 
-    /* push puck out so it never overlaps */
     float overlap = rsum - dist + 0.1f;
     puck->x += nx * overlap;
     puck->y += ny * overlap;
 
-    /* relative velocity along normal */
     float rvx = puck->vx - pad->vx;
     float rvy = puck->vy - pad->vy;
     float vn = rvx * nx + rvy * ny;
 
     if (vn < 0)
     {
-        /* Reflection with restitution */
         float j = -(1.0f + COLLISION_RESTITUTION) * vn;
         puck->vx += j * nx;
         puck->vy += j * ny;
 
-        /* spin: tangential component of relative velocity creates spin */
         float tx = -ny, ty = nx;
         float vt = rvx * tx + rvy * ty;
         *spin += vt * 0.0015f;
 
-        /* "punch" from the paddle — makes hard flicks rewarding */
         float paddle_speed = sqrtf(len2(pad->vx, pad->vy));
         if (paddle_speed > 50.0f)
         {
@@ -127,13 +116,26 @@ static void collide_paddle(Body *puck, float *spin, const Body *pad)
             puck->vx += nx * boost;
             puck->vy += ny * boost;
         }
+
+        g->ev_hit = true;
+        float imp = fabsf(vn) / 500.0f + paddle_speed / 900.0f;
+        if (imp > 1.0f)
+            imp = 1.0f;
+        if (imp < 0.2f)
+            imp = 0.2f;
+        g->ev_hit_intensity = imp;
+
+        g->ev_hit_pos_valid = true;
+        g->ev_hit_pos_x = puck->x;
+        g->ev_hit_pos_y = puck->y;
+        g->ev_hit_dir_x = nx;
+        g->ev_hit_dir_y = ny;
     }
 
     clamp_speed(puck, PUCK_MAX_SPEED);
 }
 
-/* Advance puck by small steps to prevent tunneling through thin walls/paddles */
-static void integrate_puck(GameState *g, float dt)
+static void integrate_puck(GameState *g, float dt, float r1, float r2)
 {
     float speed = sqrtf(len2(g->puck.vx, g->puck.vy));
     int steps = 1 + (int)(speed * dt / (PUCK_R * 0.5f));
@@ -146,11 +148,9 @@ static void integrate_puck(GameState *g, float dt)
         g->puck.x += g->puck.vx * sdt;
         g->puck.y += g->puck.vy * sdt;
 
-        /* --- paddle collisions --- */
-        collide_paddle(&g->puck, &g->puck_spin, &g->p1);
-        collide_paddle(&g->puck, &g->puck_spin, &g->p2);
+        collide_paddle(g, &g->puck, &g->puck_spin, &g->p1, r1);
+        collide_paddle(g, &g->puck, &g->puck_spin, &g->p2, r2);
 
-        /* --- goal checks --- */
         float gx_min = (FIELD_W - GOAL_WIDTH) / 2.0f;
         float gx_max = gx_min + GOAL_WIDTH;
 
@@ -162,12 +162,18 @@ static void integrate_puck(GameState *g, float dt)
                 g->last_scorer = 1;
                 g->goal_flash = 0.6f;
                 g->shake = 14.0f;
+                g->ev_goal = true;
                 game_reset_puck(g, 1);
                 return;
             }
             g->puck.y = WALL_THICK + PUCK_R;
             g->puck.vy = -g->puck.vy;
             g->puck.vx *= 0.98f;
+            g->ev_wall = true;
+            g->ev_wall_intensity = 0.55f;
+            g->ev_wall_pos_valid = true;
+            g->ev_wall_pos_x = g->puck.x;
+            g->ev_wall_pos_y = g->puck.y;
         }
         if (g->puck.y + PUCK_R > FIELD_H - WALL_THICK)
         {
@@ -177,28 +183,42 @@ static void integrate_puck(GameState *g, float dt)
                 g->last_scorer = 2;
                 g->goal_flash = 0.6f;
                 g->shake = 14.0f;
+                g->ev_goal = true;
                 game_reset_puck(g, 2);
                 return;
             }
             g->puck.y = FIELD_H - WALL_THICK - PUCK_R;
             g->puck.vy = -g->puck.vy;
             g->puck.vx *= 0.98f;
+            g->ev_wall = true;
+            g->ev_wall_intensity = 0.55f;
+            g->ev_wall_pos_valid = true;
+            g->ev_wall_pos_x = g->puck.x;
+            g->ev_wall_pos_y = g->puck.y;
         }
 
-        /* side walls */
         if (g->puck.x - PUCK_R < WALL_THICK)
         {
             g->puck.x = WALL_THICK + PUCK_R;
             g->puck.vx = -g->puck.vx;
+            g->ev_wall = true;
+            g->ev_wall_intensity = 0.5f;
+            g->ev_wall_pos_valid = true;
+            g->ev_wall_pos_x = g->puck.x;
+            g->ev_wall_pos_y = g->puck.y;
         }
         if (g->puck.x + PUCK_R > FIELD_W - WALL_THICK)
         {
             g->puck.x = FIELD_W - WALL_THICK - PUCK_R;
             g->puck.vx = -g->puck.vx;
+            g->ev_wall = true;
+            g->ev_wall_intensity = 0.5f;
+            g->ev_wall_pos_valid = true;
+            g->ev_wall_pos_x = g->puck.x;
+            g->ev_wall_pos_y = g->puck.y;
         }
     }
 
-    /* Apply spin as slight curve (magnus-ish) */
     float sp = g->puck_spin;
     if (fabsf(sp) > 0.01f)
     {
@@ -224,8 +244,15 @@ void game_init(GameState *g, GameMode mode)
     g->p2.x = FIELD_W / 2.0f;
     g->p2.y = 100.0f;
 
+    /* power-up defaults */
+    g->p1_radius_mult = 1.0f;
+    g->p2_radius_mult = 1.0f;
+    g->puck_speed_mult = 1.0f;
+    g->p1_frozen = false;
+    g->p2_frozen = false;
+
     game_reset_puck(g, 1);
-    g->reset_timer = 3.0f; /* 3-2-1-GO */
+    g->reset_timer = 3.0f;
 }
 
 void game_reset_puck(GameState *g, int toward_player)
@@ -235,7 +262,7 @@ void game_reset_puck(GameState *g, int toward_player)
     g->puck.vx = 0;
     g->puck.vy = 0;
     g->puck_spin = 0;
-    (void)toward_player; /* ignored — we now relaunch from center slowly */
+    (void)toward_player;
     g->reset_timer = 3.0f;
 }
 
@@ -244,13 +271,36 @@ void game_update(GameState *g, float dt,
                  float p2_tx, float p2_ty)
 {
     if (dt > 0.05f)
-        dt = 0.05f; /* cap huge frame times */
+        dt = 0.05f;
 
-    /* paddles always respond, even during countdown */
-    update_paddle(&g->p1, p1_tx, p1_ty, true, dt);
-    update_paddle(&g->p2, p2_tx, p2_ty, false, dt);
+    /* clear per-frame events */
+    g->ev_hit = g->ev_wall = g->ev_goal = false;
+    g->ev_go = false;
+    g->ev_count_tick = -1;
+    g->ev_hit_pos_valid = false;
+    g->ev_wall_pos_valid = false;
 
-    /* visual effects tick */
+    float p1_radius = PADDLE_R * g->p1_radius_mult;
+    float p2_radius = PADDLE_R * g->p2_radius_mult;
+
+    if (g->p1_frozen)
+    {
+        g->p1.vx = g->p1.vy = 0;
+    }
+    else
+    {
+        update_paddle(&g->p1, p1_tx, p1_ty, true, dt, p1_radius);
+    }
+
+    if (g->p2_frozen)
+    {
+        g->p2.vx = g->p2.vy = 0;
+    }
+    else
+    {
+        update_paddle(&g->p2, p2_tx, p2_ty, false, dt, p2_radius);
+    }
+
     if (g->goal_flash > 0)
         g->goal_flash -= dt;
     if (g->shake > 0)
@@ -258,13 +308,22 @@ void game_update(GameState *g, float dt,
     if (g->shake < 0)
         g->shake = 0;
 
-    /* countdown */
     if (g->reset_timer > 0)
     {
+        int prev_sec = (int)ceilf(g->reset_timer + dt);
         g->reset_timer -= dt;
+        int curr_sec = (int)ceilf(g->reset_timer);
+
+        if (prev_sec != curr_sec)
+        {
+            if (curr_sec >= 1 && curr_sec <= 3)
+                g->ev_count_tick = curr_sec;
+            else if (curr_sec <= 0)
+                g->ev_go = true;
+        }
+
         if (g->reset_timer <= 0)
         {
-            /* Launch puck gently toward whoever conceded */
             float dir = (g->last_scorer == 1) ? 1.0f : -1.0f;
             g->puck.vy = 260.0f * dir;
             g->puck.vx = ((rand() % 2) ? 1 : -1) * 80.0f;
@@ -272,7 +331,6 @@ void game_update(GameState *g, float dt,
         return;
     }
 
-    /* puck friction — proportional to speed */
     float sp = sqrtf(len2(g->puck.vx, g->puck.vy));
     if (sp > 0.01f)
     {
@@ -292,9 +350,21 @@ void game_update(GameState *g, float dt,
         g->puck.vx = g->puck.vy = 0;
     }
 
-    integrate_puck(g, dt);
+    integrate_puck(g, dt, p1_radius, p2_radius);
 
-    /* safety: if puck is somehow frozen mid-field, nudge it */
+    /* slow-mo: cap puck speed if active */
+    if (g->puck_speed_mult < 1.0f)
+    {
+        float s2 = sqrtf(len2(g->puck.vx, g->puck.vy));
+        float cap = PUCK_MAX_SPEED * g->puck_speed_mult;
+        if (s2 > cap && s2 > 0.01f)
+        {
+            float k = cap / s2;
+            g->puck.vx *= k;
+            g->puck.vy *= k;
+        }
+    }
+
     if (g->puck.vx == 0 && g->puck.vy == 0 && g->reset_timer <= 0)
     {
         float dir = (g->puck.y < FIELD_H / 2.0f) ? 1.0f : -1.0f;
