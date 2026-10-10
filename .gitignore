@@ -1,0 +1,4 @@
+airhockey
+*.o
+.DS_Store
+.vscode/
