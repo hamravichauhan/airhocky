@@ -16,10 +16,16 @@
 #include <stdio.h>
 #include <string.h>
 
+static RenderTexture2D s_rt;
+
 static void snap(const char *path)
 {
-    EndDrawing();
-    TakeScreenshot(path);
+    EndTextureMode();
+    Image img = LoadImageFromTexture(s_rt.texture);
+    ImageFlipVertical(&img);
+    ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+    ExportImage(img, path);
+    UnloadImage(img);
     printf("Saved screenshot: %s\n", path);
 }
 
@@ -28,6 +34,8 @@ int main(void)
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(FIELD_W, FIELD_H + 120, "Air Hockey Screenshots");
     SetTargetFPS(60);
+
+    s_rt = LoadRenderTexture(FIELD_W, FIELD_H + 120);
 
     themes_init();
     particles_init();
@@ -106,20 +114,15 @@ int main(void)
     commentary_init(&commentary);
     commentary_trigger(&commentary, CMT_POWER_SHOT);
 
-    // Warmup frame
-    BeginDrawing();
-    ClearBackground((Color){20, 25, 35, 255});
-    EndDrawing();
-
     // 1. MAIN MENU
-    BeginDrawing();
+    BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     render_menu(0);
     snap("screenshots/01_main_menu.png");
 
     // 2. GAMEPLAY - NEON THEME
     themes_set_by_index(THEME_NEON);
-    BeginDrawing();
+    BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     render_field(&game);
     powerup_draw(&powerups, 100);
@@ -131,7 +134,7 @@ int main(void)
     snap("screenshots/02_gameplay_neon.png");
 
     // 3. TRAJECTORY & FLICK SHOT
-    BeginDrawing();
+    BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     render_field(&game);
     trajectory_draw(&game, 100, true);
@@ -140,7 +143,7 @@ int main(void)
     snap("screenshots/03_trajectory_prediction.png");
 
     // 4. HEATMAP OVERLAY
-    BeginDrawing();
+    BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     render_field(&game);
     heatmap_draw(&heat, 100);
@@ -148,26 +151,26 @@ int main(void)
     snap("screenshots/04_heatmap_overlay.png");
 
     // 5. MATCH STATISTICS SCREEN
-    BeginDrawing();
+    BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     render_stats_screen(&stats, &records, 1);
     snap("screenshots/05_match_stats.png");
 
     // 6. TIME ATTACK RESULTS
-    BeginDrawing();
+    BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     render_time_attack_results(18, 18);
     snap("screenshots/06_time_attack.png");
 
     // 7. SETTINGS MENU
-    BeginDrawing();
+    BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     settings_ui_draw(&settings);
     ui_back_button_draw();
     snap("screenshots/07_settings_menu.png");
 
     // 8. TOURNAMENT FORMAT SELECTION
-    BeginDrawing();
+    BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     ui_background();
     ui_title("TOURNAMENT FORMAT", 0.3f);
@@ -183,7 +186,7 @@ int main(void)
     snap("screenshots/08_tournament_mode.png");
 
     // 9. LAN MULTIPLAYER JOIN SCREEN
-    BeginDrawing();
+    BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     ui_background();
     ui_title("JOIN GAME", 0.3f);
@@ -196,6 +199,7 @@ int main(void)
     ui_back_button_draw();
     snap("screenshots/09_lan_join.png");
 
+    UnloadRenderTexture(s_rt);
     CloseWindow();
     return 0;
 }

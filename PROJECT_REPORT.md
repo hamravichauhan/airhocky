@@ -27,18 +27,19 @@
 
 ---
 
-## Chapter 1: Problem Definition
+## Chapter 1: Motivation Behind the Project
 
-In modern computer science education, most academic projects gravitate toward high-level web development frameworks or standard CRUD applications. While useful, these applications rarely expose students to low-level operating system interfaces, manual memory management, digital signal processing, or real-time distributed communication.
+The motivation behind developing this Air Hockey simulation engine stems from a strong desire to explore low-level systems programming, real-time physics, and network engineering from the ground up using pure **C11**.
 
-Building a real-time multiplayer sports simulation in pure C11 introduces several complex computer science challenges:
+The core motivations guiding this project are:
 
-* **Network Desynchronization (Split-Screen Divergence):** In multiplayer physics games, running simulation loops independently on two machines inevitably causes floating-point divergence. Over time, slight timing differences cause the puck to be in two completely different locations on each player's screen.
-* **Game-Loop Stalls (Blocking Sockets):** Standard network socket calls like `recv()` pause thread execution until bytes arrive from the network. In a 60 FPS real-time game, any network delay would freeze the application, dropping frame rates to zero and causing severe lag spikes.
-* **Collision Tunneling at High Velocity:** When objects move rapidly (e.g., an air hockey puck travelling up to 1400 pixels/second), standard discrete collision checks fail because the puck can leap entirely across a boundary or paddle in a single 16.6 millisecond frame step.
-* **Heavy External Media Dependencies:** Most 2D games require dozens of image and audio asset files (`.png`, `.wav`, `.mp3`), making deployments fragile, architecture-dependent, and prone to runtime missing-file exceptions.
+* **Mastering Low-Level Systems and Memory Control:** Gaining deep, practical expertise in manual memory management, pointer arithmetic, and direct hardware execution without relying on automated garbage collectors or heavy runtime abstractions.
+* **Building a Real-Time Multiplayer Network Engine:** Understanding and implementing real-time client-server communication using raw TCP sockets, focusing on non-blocking network I/O, custom packet serialization, and synchronized gameplay across multiple machines with zero lag.
+* **Implementing Physics and Mathematics from First Principles:** Understanding how game mechanics function under the hood by implementing 2D vector mathematics, elastic collision resolution, and sub-stepped physics integration directly using mathematical formulas rather than a pre-built physics engine.
+* **Creating a Lightweight, Self-Contained Application:** Engineering an ultra-lightweight, efficient application (under 10 MB) that requires zero external asset files—generating all visual effects, particle systems, and audio waveforms procedurally in code through digital signal processing (DSP).
+* **Developing Seamless Cross-Platform Portability:** Writing clean, standard C code that compiles natively on both Linux (POSIX) and Windows (Winsock2), allowing different operating systems to connect and play together seamlessly over a local area network.
 
-This project resolves each of these fundamental problems by creating a self-contained, real-time Air Hockey simulation engine in pure C11, incorporating non-blocking POSIX TCP sockets, sub-stepped physics integration, adaptive Solo Mode opponent heuristics, and real-time procedural audio synthesis.
+By focusing on these core engineering motivations, this project delivers a robust, self-contained, and performant real-time sports simulation engine that unifies mathematical modeling, network synchronization, and systems programming into a single cohesive system.
 
 ---
 
@@ -47,7 +48,7 @@ This project resolves each of these fundamental problems by creating a self-cont
 The primary objectives of this project include:
 
 * **Sub-Stepped 2D Physics Engine:** Implement continuous collision detection (CCD) with up to 6 micro-steps per frame to prevent high-speed tunneling, along with momentum transfer ("flick shots") and Magnus effect curve spin physics.
-* **Host-Authoritative LAN Multiplayer:** Design a zero-desync client-server architecture over POSIX TCP sockets (port `50505`) with non-blocking I/O (`O_NONBLOCK`) ensuring the 60 FPS game loop never stalls.
+* **Host-Authoritative LAN Multiplayer:** Design a zero-desync client-server architecture over cross-platform TCP sockets (POSIX on Linux/macOS and Winsock2 on Windows, port `50505`) with non-blocking I/O ensuring the 60 FPS game loop never stalls.
 * **Solo Mode Opponent Mechanics:** Develop an autonomous state machine (`DEFEND`, `INTERCEPT`, `ATTACK`, `STRIKE`) in Solo Mode that dynamically learns player scoring tendencies, featuring predictive cushion raycasting and spatial habit adaptation.
 * **100% Procedural Audio DSP:** Synthesize all sound effects directly in RAM using raw 44.1 kHz PCM waveforms (sine waves, white noise, and exponential decay envelopes), removing all external audio file dependencies.
 * **Esports Telemetry & Polish:** Provide high visual juice with a static 512-particle pool, live $24 \times 32$ court heatmaps, instant slow-motion replay circular ring buffers, and 4 arena themes.
@@ -70,7 +71,7 @@ The software architecture establishes a clear separation between the Host (which
 
 ### 3.2 Multiplayer Synchronization Sequence & Protocol
 
-To prevent desynchronization in real-time LAN play, the network engine employs a Host-Authoritative synchronization protocol over POSIX TCP sockets on port `50505`.
+To prevent desynchronization in real-time LAN play, the network engine employs a Host-Authoritative synchronization protocol over non-blocking cross-platform TCP sockets on port `50505`.
 
 ![Figure 3.2: Network Communication & Frame Synchronization](diagrams/02_sync_flow.png)  
 **Figure 3.2: Network Communication & Frame Synchronization (Mermaid Sequence Diagram)**  
@@ -124,8 +125,8 @@ The project consists of 22 pairs of C source (`.c`) and header (`.h`) files tota
 ### 4.2 2D Physics & Predictive Trajectory Engine (`src/game.c`, `src/trajectory.c`)
 `src/game.c` contains the complete physics simulation. It handles paddle acceleration ($8000\text{ px/s}^2$), friction damping, speed clamping ($1400\text{ px/s}$), boundary enforcement, elastic collisions ($\text{restitution} = 0.92$), and goal scoring. When the paddle strikes the puck with high velocity, it applies a "flick shot" momentum boost ($+0.35 \times \text{paddle\_speed}$). Tangential contact imparts angular momentum (spin), which curves the puck using the Magnus effect (cross-product acceleration perpendicular to velocity). `src/trajectory.c` raycasts 60 forward steps into the future, computing cushion reflections to draw a predictive dotted path on the court (toggled with `CTRL`).
 
-### 4.3 Non-Blocking POSIX Network Layer (`src/net.c`, `src/protocol.h`)
-`src/net.c` implements real-time LAN communication using low-level POSIX TCP sockets on port `50505`. It uses `fcntl(fd, F_SETFL, O_NONBLOCK)` to ensure network I/O never blocks the frame loop. Custom `send_all()` and `recv_all()` loops handle TCP stream fragmentation, looping until full byte buffers are transferred. `src/protocol.h` defines the `Packet` struct with message types (`MSG_HELLO`, `MSG_START`, `MSG_INPUT`, `MSG_STATE`, `MSG_BYE`). The Host acts as the authoritative server, accepting client inputs and broadcasting complete world snapshots.
+### 4.3 Non-Blocking Cross-Platform Network Layer (`src/net.c`, `src/protocol.h`)
+`src/net.c` implements real-time LAN communication using low-level cross-platform TCP sockets on port `50505` (POSIX sockets on Linux/macOS and Winsock2 on Windows). It uses non-blocking I/O (`fcntl` on POSIX, `ioctlsocket` on Windows) to ensure network I/O never blocks the frame loop. Custom `send_all()` and `recv_all()` loops handle TCP stream fragmentation, looping until full byte buffers are transferred. `src/protocol.h` defines the `Packet` struct with message types (`MSG_HELLO`, `MSG_START`, `MSG_INPUT`, `MSG_STATE`, `MSG_BYE`). The Host acts as the authoritative server, accepting client inputs and broadcasting complete world snapshots.
 
 ### 4.4 Solo Mode Opponent Engine (`src/ai.c`)
 `src/ai.c` implements the Solo Mode autonomous opponent using a 5-state FSM (`DEFEND`, `INTERCEPT`, `ATTACK`, `STRIKE`, `RESET`). It features difficulty knobs for reaction delay, prediction quality, speed caps, and positional jitter. When attacking, it performs a realistic windup step backwards before driving forward at an angle toward the player's goal. It adapts to player scoring habits by recording player goal zones and dynamically adjusting its defensive resting stance.
@@ -281,7 +282,7 @@ File: airhockey.dat (All-time records):
 
 ## Chapter 8: Conclusion & Future Scope
 
-This project successfully proves that advanced, production-grade real-time systems can be developed in pure C11 without relying on heavy game engines or external media assets. By combining non-blocking POSIX socket programming, continuous sub-stepped physics simulation, an adaptive Solo Mode state-machine opponent, and mathematical procedural waveform synthesis, the project demonstrates a comprehensive mastery of low-level systems programming, networking, and computer graphics.
+This project successfully proves that advanced, production-grade real-time systems can be developed in pure C11 without relying on heavy game engines or external media assets. By combining non-blocking cross-platform socket programming, continuous sub-stepped physics simulation, an adaptive Solo Mode state-machine opponent, and mathematical procedural waveform synthesis, the project demonstrates a comprehensive mastery of low-level systems programming, networking, and computer graphics.
 
 Future enhancements planned for the project include:
 * **NAT Punch-Through:** Implementing STUN/UDP relay protocols to allow internet play beyond local subnets.
