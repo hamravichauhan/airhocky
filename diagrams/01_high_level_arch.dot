@@ -1,0 +1,50 @@
+
+digraph HighLevelArch {
+    graph [rankdir=LR, bgcolor="transparent", fontname="Helvetica", nodesep=0.5, ranksep=0.8];
+    node [fontname="Helvetica", shape=box, style="filled,rounded", penwidth=1.5, margin="0.2,0.15", fontsize=11];
+    edge [fontname="Helvetica", fontsize=10, color="#334155", penwidth=1.5];
+
+    subgraph cluster_client {
+        label = "CLIENT MACHINE";
+        fontname = "Helvetica-Bold";
+        fontsize = 13;
+        color = "#0284C7";
+        penwidth = 2.0;
+        style = "filled,rounded";
+        fillcolor = "#F0F9FF";
+
+        c_input [label="Client Input\n(input.c)\n• Keyboard WASD\n• Mouse Position", fillcolor="#BAE6FD", color="#0284C7"];
+        c_net   [label="Client Socket\n(net.c)\n• Non-blocking TCP\n• Port 50505", fillcolor="#BAE6FD", color="#0284C7"];
+        c_rend  [label="Client Renderer\n(render.c)\n• Raylib OpenGL\n• 60 FPS Display", fillcolor="#BAE6FD", color="#0284C7"];
+
+        c_input -> c_net [label="Target (tx, ty)"];
+        c_net -> c_rend [label="Snapshot"];
+    }
+
+    subgraph cluster_host {
+        label = "HOST MACHINE (SERVER & SIMULATOR)";
+        fontname = "Helvetica-Bold";
+        fontsize = 13;
+        color = "#1E3A8A";
+        penwidth = 2.0;
+        style = "filled,rounded";
+        fillcolor = "#F8FAFC";
+
+        h_input [label="Host Input\n(input.c)\n• Player 1 Controls", fillcolor="#DBEAFE", color="#1E3A8A"];
+        h_net   [label="Host Socket\n(net.c)\n• O_NONBLOCK\n• Authoritative", fillcolor="#DBEAFE", color="#1E3A8A"];
+        h_phys  [label="Physics Engine\n(game.c)\n• 6-Step Substepping\n• Magnus Spin Curve\n• Flick Shot Boost", fillcolor="#FEF08A", color="#CA8A04"];
+        h_ai    [label="AI Engine\n(ai.c)\n• Finite State Machine\n• Adaptive Habit Bias", fillcolor="#E0E7FF", color="#4338CA"];
+        h_rend  [label="Renderer & FX\n(render.c, particles.c)\n• 4 Color Themes\n• 512-Particle Pool", fillcolor="#DCFCE7", color="#16A34A"];
+        h_audio [label="Audio DSP Synthesizer\n(audio.c)\n• Procedural Waves\n• Dynamic Tension", fillcolor="#FCE7F3", color="#DB2777"];
+
+        h_input -> h_phys;
+        h_ai -> h_phys;
+        h_net -> h_phys [label="Client Paddle Target"];
+        h_phys -> h_rend [label="Positions & Events"];
+        h_phys -> h_audio [label="Impulse / Goal SFX"];
+        h_phys -> h_net [label="World Snapshot"];
+    }
+
+    c_net -> h_net [label="MSG_INPUT\n(Paddle Target)", color="#0284C7", style="bold"];
+    h_net -> c_net [label="MSG_STATE\n(Full World Snapshot)", color="#1E3A8A", style="bold"];
+}

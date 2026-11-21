@@ -1,0 +1,45 @@
+flowchart TD
+    subgraph StepA ["STAGE 1: Frame Initialization & Substep Slicing"]
+        Start(["Frame Physics Start (dt ≤ 0.05s)"]) --> SpeedCheck["1. Calculate Velocity: v = sqrt(vx² + vy²)"]
+        SpeedCheck --> StepCalc["2. Compute Substeps: 1 + (v * dt / (0.5 * radius))
+Clamp: 1 ≤ steps ≤ 6 (sdt = dt / steps)"]
+    end
+
+    subgraph StepB ["STAGE 2: Substep Motion & Boundary Collision"]
+        LoopStart["3. Advance Position:
+puck.x += vx * sdt
+puck.y += vy * sdt"] --> PadCol["4. Collide With Paddles 1 & 2
+• Normal Impulse: j = -(1 + e) * vn
+• Tangential Friction -> Imparts Spin
+• Flick Boost: +0.35 * paddle_speed"]
+        PadCol --> WallCol{"5. Boundary Check"}
+    end
+
+    subgraph StepC ["STAGE 3: Event Resolution & Flight Curvature"]
+        WallCol -- "Goal Slot" --> GoalScore["Goal Scored!
+• Increment Score
+• Trigger 14px Shake
+• Reset (3s Timer)"]
+        WallCol -- "Solid Wall" --> WallBounce["Wall Cushion Bounce
+• Invert Normal Velocity
+• Emit Impact Sparks & SFX"]
+        WallCol -- "Open Rink" --> SpinEffect["6. Magnus Effect
+Curve velocity perpendicular
+to flight: curve = spin * 0.0006"]
+        WallBounce --> SpinEffect
+        GoalScore --> EndCheck{"More Substeps?"}
+        SpinEffect --> EndCheck
+    end
+
+    StepCalc --> LoopStart
+    EndCheck -- "Yes (Next Step)" --> LoopStart
+    EndCheck -- "No (Complete)" --> Done(["Frame Physics Complete (Zero Tunneling!)"])
+
+    style Start fill:#E2E8F0,stroke:#475569,stroke-width:2px
+    style StepCalc fill:#FEF3C7,stroke:#D97706,stroke-width:2.5px
+    style LoopStart fill:#DBEAFE,stroke:#1E3A8A,stroke-width:2.5px
+    style PadCol fill:#FEF08A,stroke:#CA8A04,stroke-width:2.5px
+    style GoalScore fill:#FEE2E2,stroke:#DC2626,stroke-width:2.5px
+    style WallBounce fill:#E0E7FF,stroke:#4338CA,stroke-width:2px
+    style SpinEffect fill:#DCFCE7,stroke:#16A34A,stroke-width:2.5px
+    style Done fill:#DCFCE7,stroke:#16A34A,stroke-width:3px

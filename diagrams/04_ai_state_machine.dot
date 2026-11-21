@@ -1,0 +1,20 @@
+
+digraph AIStateMachine {
+    graph [rankdir=LR, bgcolor="transparent", fontname="Helvetica", nodesep=0.6, ranksep=0.7];
+    node [fontname="Helvetica", shape=box, style="filled,rounded", penwidth=1.5, margin="0.25,0.15", fontsize=11];
+    edge [fontname="Helvetica", fontsize=10, color="#475569", penwidth=1.4];
+
+    defend [label="DEFEND STATE\n• Stays in defensive arc\n• Adjusts resting position based\n  on player goal history (Adaptive)", fillcolor="#DBEAFE", color="#1E3A8A", fontname="Helvetica-Bold"];
+    intercept [label="INTERCEPT STATE\n• Puck moving toward AI court\n• Moves to predicted bounce position", fillcolor="#FEF3C7", color="#D97706", fontname="Helvetica-Bold"];
+    attack [label="ATTACK STATE\n• Puck is slow / stationary\n• Closes in for offensive strike", fillcolor="#DCFCE7", color="#16A34A", fontname="Helvetica-Bold"];
+    strike [label="STRIKE STATE\n• Windup step backwards\n• Explosive forward thrust at goal angle", fillcolor="#FEE2E2", color="#DC2626", fontname="Helvetica-Bold"];
+    reset [label="RESET STATE\n• Goal scored\n• Return to center home post", fillcolor="#F1F5F9", color="#64748B", fontname="Helvetica-Bold"];
+
+    defend -> intercept [label="Puck crosses midfield\n& vy < 0", color="#1E3A8A"];
+    intercept -> attack [label="Puck near AI &\nspeed < strike_threshold", color="#D97706"];
+    attack -> strike [label="Aligned with puck\n& opponent goal", color="#16A34A"];
+    strike -> defend [label="Puck hit / cleared\nback to player half", color="#475569"];
+    intercept -> defend [label="Puck clears away", color="#64748B"];
+    defend -> reset [label="Goal scored", color="#DC2626"];
+    reset -> defend [label="Countdown finished", color="#1E3A8A"];
+}

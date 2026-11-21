@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    participant Host as Host (Server & Simulator)
+    participant Client as Client (Remote Player)
+
+    Note over Host: Sockets Listening on Port 50505
+    Client->>Host: TCP Connect Request (inet_pton + connect)
+    Host-->>Client: Accept Connection & Send MSG_START
+    Note over Host,Client: 3-Second Countdown Begins (Puck Locked at Center)
+
+    loop Every 16.6 ms Frame (60 FPS Game Loop)
+        Client->>Client: 1. Read Local Input (input_get_local_target)
+        Client->>Host: 2. Send MSG_INPUT (client_tx, client_ty)
+        Note over Host: 3. Drain Socket Non-Blockingly (net_poll_input)
+        Note over Host: 4. Run Sub-stepped Physics (game_update in 6 steps)
+        Note over Host: 5. Detect Paddle Hits, Wall Bounces, Goals
+        Host->>Client: 6. Send MSG_STATE (p1, p2, puck, spin, scores, shake)
+        Client->>Client: 7. Overwrite Local Variables (net_poll_state)
+        Client->>Client: 8. Draw Arena, Paddles & Puck (render_field)
+        Host->>Host: 9. Draw Arena & Play Procedural Audio (audio_play)
+    end
+
+    alt Goal Scored or Match Finished
+        Host->>Client: Broadcast Final Scores & Goal Strobe
+        Note over Host,Client: Display Match Statistics & AI Coach Review
+    end

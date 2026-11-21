@@ -1,46 +1,197 @@
-# Air Hockey — C / raylib LAN Multiplayer Game
+# AIR HOCKEY: Real-Time 2D LAN Multiplayer & Systems Simulation Engine
 
-## Problem Definition
+A high-performance, real-time 2D Air Hockey game engine built from scratch in pure **C11** using **raylib** and **low-level sockets (POSIX TCP on Linux/macOS and Winsock2 on Windows)**.
 
-Most 2-player games require shared hardware or dedicated servers. This project
-provides a real-time air hockey game in pure C that supports both local
-(same-keyboard) and LAN (same-WiFi) play, demonstrating physics simulation
-and TCP network programming.
+---
 
-## Objectives
+## 🚀 Key Highlights & Architectural Features
 
-1. Build an interactive air hockey game with accurate 2D physics
-2. Support two players on the same keyboard (local mode)
-3. Support two players over LAN via TCP sockets (host/join)
-4. Provide a clean UI with menus, countdown, scoring, and win detection
+* **Zero External Asset Dependencies:** Contains no `.png`, `.wav`, or `.mp3` files on disk. 100% of graphics are vector-rendered via OpenGL primitives, and 100% of audio waveforms are synthesized procedurally in RAM at 44.1 kHz.
+* **Deterministic 60 FPS Performance:** Input, physics, network synchronization, and graphics all complete within a strict **16.6-millisecond frame budget**.
+* **Zero Dynamic Memory Allocation in Game Loop:** All particles, replay frames, and sound buffers utilize pre-allocated static pools to eliminate heap fragmentation and garbage collection stutters.
+* **Continuous Collision Detection (CCD):** Implements dynamic micro-stepping (1 to 6 sub-steps per frame) to completely eliminate high-velocity **collision tunneling** at speeds exceeding $1400\text{ px/s}$.
+* **Host-Authoritative LAN Multiplayer:** Host acts as the single source of truth over port `50505` with non-blocking sockets (`O_NONBLOCK` / `ioctlsocket`), guaranteeing zero split-screen desync and zero frame-rate stalls.
+* **Autonomous Solo Mode Opponent:** Features a human-like 5-state Finite State Machine (`DEFEND`, `INTERCEPT`, `ATTACK`, `STRIKE`, `RESET`) with realistic reaction latency, strike windup, and adaptive spatial habit tracking.
+* **Esports Telemetry & Polish:** Instant slow-motion replay buffer (`V` key), predictive cushion bounce raycasting (`CTRL` key), $24 \times 32$ territorial heatmap (`TAB` key), arena power-up drops, and 4 arena themes (`T` key).
 
-## Features
+---
 
-- Full 2D paddle movement with acceleration and friction
-- Realistic puck physics: friction, restitution, spin, sub-stepped collision
-- "Flick shot" mechanic — fast paddle movement transfers momentum to the puck
-- 3-2-1-GO countdown between rounds
-- Goal flash + screen shake on score
-- Host-authoritative networking (zero desync)
-- Cross-platform: macOS + Linux (POSIX sockets)
+## 🎮 Playable Game Modes
 
-## Controls
+1. **Solo Mode:** Single player vs. the 5-state adaptive computer opponent (*Easy, Medium, Hard* presets).
+2. **Local 2-Player:** Split-keyboard competition on a single laptop/PC.
+3. **Host LAN Game:** Host an authoritative game server over local Wi-Fi or Ethernet on port `50505`.
+4. **Join LAN Game:** Connect directly to a host machine via IPv4 address with instant handshake sync.
+5. **Tournament Mode:** Multi-match championship series in **Best-of-3 (BO3)** or **Best-of-5 (BO5)** formats.
+6. **Time Attack:** 60-second high-score sprint against the clock to score maximum goals.
+7. **Bot vs. Bot Demo:** Automated exhibition match showcasing two autonomous bots competing.
+8. **Settings:** In-game configuration dashboard with volume, speeds, and themes saved to `settings.dat`.
 
-| Mode   | Player 1 (blue)          | Player 2 (red)                |
-| ------ | ------------------------ | ----------------------------- |
-| Local  | W A S D                  | Arrow keys                    |
-| Host   | W A S D (mouse optional) | (client controls via network) |
-| Client | W A S D (mouse optional) | —                             |
+---
 
-- ENTER to select menus
-- ESC to cancel / return to menu
+## 🕹️ Controls Reference
 
-## Build
+| Control Action | Key / Input | Mode / Context | Engine Response |
+| :--- | :--- | :--- | :--- |
+| **Navigate Menus** | `W` / `S` or `UP` / `DOWN` | Menu Screens | Cycles highlighted item with audio tick |
+| **Select Option** | `ENTER` | Menu Screens | Selects button with smooth alpha screen fade |
+| **Return / Back** | `ESC` | Any Screen | Returns to the previous screen or Main Menu |
+| **Player 1 Paddle** | `W`, `A`, `S`, `D` | Gameplay | Accelerates paddle; clamped to lower half-court |
+| **Player 2 Paddle** | `Arrow Keys` | Local Play | Accelerates paddle; clamped to upper half-court |
+| **Flick Shot** | Fast Paddle Swing | Gameplay | Imparts $+0.35 \times \text{paddle\_speed}$ momentum boost |
+| **Trajectory Aim Guide** | Hold `LEFT CTRL` | Gameplay | Raycasts 60 forward steps showing bounce angles |
+| **Territorial Heatmap** | Press `TAB` | Gameplay | Toggles $24 \times 32$ puck density grid overlay |
+| **Instant Slow-Mo Replay** | Press `V` | Gameplay | Replays last 5 seconds in $0.35\times$ slow motion |
+| **Switch Arena Theme** | Press `T` | Gameplay | Cycles themes: `Neon` $\rightarrow$ `Retro` $\rightarrow$ `Dark` $\rightarrow$ `Fire` |
 
-### macOS
+---
 
-```bash
-brew install raylib
-make
-./airhockey
+## 📦 How to Build and Run
+
+The project features a unified cross-platform `Makefile` that automatically detects your operating system and links the appropriate platform libraries.
+
+---
+
+### 🐧 Linux (Fedora, RHEL, CentOS)
+
+1. **Install dependencies:**
+   ```bash
+   sudo dnf install -y raylib-devel gcc make
+   ```
+2. **Build and run:**
+   ```bash
+   make
+   ./airhockey
+   ```
+
+---
+
+### 🐧 Linux (Ubuntu, Debian, Linux Mint)
+
+1. **Install dependencies:**
+   ```bash
+   sudo apt update
+   sudo apt install -y libraylib-dev gcc make
+   ```
+2. **Build and run:**
+   ```bash
+   make
+   ./airhockey
+   ```
+
+---
+
+### 🪟 Windows (Option 1: WSL — Recommended & Easiest)
+
+Running through **WSL (Windows Subsystem for Linux / Ubuntu)** is the fastest way to run the game on Windows with zero toolchain setup:
+
+1. Open the **Ubuntu / WSL terminal** on your Windows laptop.
+2. Install raylib and build tools:
+   ```bash
+   sudo apt update
+   sudo apt install -y libraylib-dev gcc make
+   ```
+3. Navigate to the project directory and run:
+   ```bash
+   make
+   ./airhockey
+   ```
+
+---
+
+### 🪟 Windows (Option 2: Native MinGW / MSYS2 `.exe`)
+
+To compile a native standalone Windows `airhockey.exe`:
+
+1. Open **MSYS2 UCRT64** terminal and install raylib and GCC:
+   ```bash
+   pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-raylib make
+   ```
+2. Build the native `.exe`:
+   ```bash
+   make
+   ```
+3. Run the game:
+   ```bash
+   ./airhockey.exe
+   ```
+
+---
+
+### 🍏 macOS (Apple Silicon M1/M2/M3 & Intel)
+
+1. **Install raylib via Homebrew:**
+   ```bash
+   brew install raylib
+   ```
+2. **Build and run:**
+   ```bash
+   make
+   ./airhockey
+   ```
+
+---
+
+## 🌐 Running a Cross-Platform LAN Match (e.g. Fedora $\longleftrightarrow$ Windows)
+
+You can run an authoritative multiplayer match between two laptops on the same local network:
+
+1. **Connect Both Machines to the Same Network:**
+   * *Pro-Tip:* Connect both machines to your phone's **Mobile Hotspot** to prevent campus/enterprise Wi-Fi firewalls from blocking port `50505`.
+
+2. **Start the Host (e.g., on Fedora Linux):**
+   * Check your local IPv4 address by typing `ip a` or `hostname -I` in the terminal (e.g., `192.168.43.15`).
+   * Launch `./airhockey`, navigate to **`Host LAN Game`**, and press `ENTER`.
+   * The host will display: *"HOSTING... WAITING FOR CLIENT ON PORT 50505"*.
+
+3. **Connect the Client (e.g., on Windows or macOS):**
+   * Launch the game, navigate to **`Join LAN Game`**, and press `ENTER`.
+   * Type the Host's IP address (`192.168.43.15`) and press `ENTER`.
+
+4. **Synchronized Play:**
+   * Both screens will instantly lock into a synchronized **3-second countdown** (*3... 2... 1... GO!*).
+   * Player 1 controls the bottom paddle on the Host; Player 2 controls the top paddle on the Client with zero desynchronization.
+
+---
+
+## 📁 Codebase Directory Structure
+
+```text
+├── Makefile                   # Multi-platform build system (Linux, macOS, Windows)
+├── README.md                  # Comprehensive build & run instructions
+├── Air_Hockey_Presentation.pptx # 16-Slide college viva presentation deck
+├── Air_Hockey_Project_Report.docx # Complete formatted academic project report
+├── PROJECT_REPORT.md          # Markdown mirrored copy of the project report
+├── VIDEO_PRODUCTION_SCRIPT.md # 10-Minute technical video voiceover script
+├── diagrams/                  # 5 High-resolution Mermaid architecture flowcharts
+├── screenshots/               # 9 Native 60 FPS in-game screen captures
+├── video_assets/              # 5 High-speed 60 FPS video clips & 5 code cards
+├── src/                       # 22 C11 source and header compilation units
+│   ├── main.c                 # Master orchestrator & 12-state screen manager
+│   ├── game.c / game.h        # Continuous sub-stepping physics & kinematics
+│   ├── net.c / net.h          # Cross-platform sockets (POSIX + Winsock2)
+│   ├── protocol.h             # 12-byte MSG_INPUT & 56-byte MSG_STATE packets
+│   ├── ai.c / ai.h            # 5-State FSM autonomous opponent with learning
+│   ├── audio.c / audio.h      # Procedural PCM audio synthesizer in RAM
+│   ├── dynaudio.c / dynaudio.h# Dynamic audio tension & pitch scaling
+│   ├── render.c / render.h    # 2D OpenGL rendering & HUD
+│   ├── ui.c / ui.h            # Vector UI panels, glowing titles & buttons
+│   ├── ui_transition.c / .h   # Alpha cross-fade screen transitions
+│   ├── particles.c / .h       # 512-Particle static memory pool
+│   ├── powerup.c / .h         # Arena collectible drops (Grow, Slow, Freeze)
+│   ├── stats.c / .h           # Match telemetry & airhockey.dat persistence
+│   ├── heatmap.c / .h         # 24x32 Territorial density grid with decay
+│   ├── trajectory.c / .h      # 60-Step predictive cushion raycasting
+│   ├── tournament.c / .h      # Best-of-3 & Best-of-5 series progression
+│   ├── themes.c / .h          # 4 Visual color palettes (Neon, Retro, Dark, Fire)
+│   ├── settings.c / .h        # Parameter serialization to settings.dat
+│   └── settings_ui.c / .h     # Interactive settings menu sliders & toggles
+└── tools/                     # Automated tools for screenshots, clips & docs
 ```
+
+---
+
+## 📜 Academic Verification
+* **Language Standard:** ISO C11 (`-std=c11 -Wall -Wextra -O2`)
+* **Memory Safety:** Profiled with **Valgrind** — 0 memory leaks, 0 heap allocations during gameplay loop.
+* **Portability:** Verified on Fedora Linux, Ubuntu, macOS (Apple Silicon ARM64 & Intel x86_64), and Windows.

@@ -1,0 +1,26 @@
+flowchart LR
+    Start(["Physics Start"]) --> SpeedCheck["1. Puck Velocity
+v = sqrt(vx² + vy²)"]
+    SpeedCheck --> StepCalc["2. Compute Dynamic Substeps
+steps = 1 + (v * dt / (0.5 * radius))
+Clamp: 1 ≤ steps ≤ 6"]
+    StepCalc --> LoopInit["3. Micro-Step Slicing
+sdt = dt / steps (6x CCD)"]
+    LoopInit --> Move["4. Advance Position
+x += vx * sdt
+y += vy * sdt"]
+    Move --> Resolve["5. Contact & Impulse
+(See Figure 3.3b)"]
+    Resolve --> LoopCheck{"More Steps?"}
+    LoopCheck -- "Yes" --> Move
+    LoopCheck -- "No" --> End(["Physics Resolved
+(Zero Tunneling!)"])
+
+    style Start fill:#E2E8F0,stroke:#475569,stroke-width:2px
+    style SpeedCheck fill:#F1F5F9,stroke:#64748B,stroke-width:1.5px
+    style StepCalc fill:#FEF3C7,stroke:#D97706,stroke-width:2.5px
+    style LoopInit fill:#DBEAFE,stroke:#1E3A8A,stroke-width:2px
+    style Move fill:#DBEAFE,stroke:#1E3A8A,stroke-width:2px
+    style Resolve fill:#FEF08A,stroke:#CA8A04,stroke-width:2.5px
+    style LoopCheck fill:#F8FAFC,stroke:#475569,stroke-width:2px
+    style End fill:#DCFCE7,stroke:#16A34A,stroke-width:2.5px

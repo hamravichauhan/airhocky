@@ -111,3 +111,11 @@ ThemeId themes_current(void)
 {
     return s_current;
 }
+
+void themes_set_by_index(int idx)
+{
+    themes_init();
+    if (idx < 0 || idx >= THEME_COUNT)
+        idx = 0;
+    s_current = (ThemeId)idx;
+}

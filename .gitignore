@@ -1,4 +1,7 @@
 airhockey
+airhockey.exe
 *.o
 .DS_Store
 .vscode/
+tools/capture_screens
+tools/record_clips

@@ -1,0 +1,28 @@
+
+digraph SyncProtocol {
+    graph [rankdir=TB, bgcolor="transparent", fontname="Helvetica", nodesep=0.4, ranksep=0.5];
+    node [fontname="Helvetica", shape=box, style="filled,rounded", penwidth=1.5, margin="0.2,0.12", fontsize=11];
+    edge [fontname="Helvetica", fontsize=10, color="#475569", penwidth=1.4];
+
+    start [label="Connection Handshake\nClient connects via TCP -> Host accepts\nBoth enter 3-second countdown (Puck locked)", fillcolor="#E2E8F0", color="#475569"];
+    
+    frame_loop [label="60 FPS Master Game Loop (Every 16.6 ms)", shape=ellipse, fillcolor="#FEF3C7", color="#D97706", fontname="Helvetica-Bold", fontsize=12];
+    
+    step1 [label="1. Client Input Capture\ninput_get_local_target() reads WASD / Mouse coordinates", fillcolor="#BAE6FD", color="#0284C7"];
+    step2 [label="2. Client Transmits MSG_INPUT\nSends Packet containing (client_tx, client_ty) via send_all()", fillcolor="#BAE6FD", color="#0284C7"];
+    step3 [label="3. Host Drains Socket (Non-Blocking)\nnet_poll_input() receives latest client paddle target", fillcolor="#DBEAFE", color="#1E3A8A"];
+    step4 [label="4. Host Simulates Physics (game_update)\nExecutes up to 6 micro-steps of collision, spin, and velocity clamping", fillcolor="#FEF08A", color="#CA8A04"];
+    step5 [label="5. Host Broadcasts MSG_STATE\nSerializes p1, p2, puck (x, y, vx, vy, spin), scores, shake into Packet", fillcolor="#DBEAFE", color="#1E3A8A"];
+    step6 [label="6. Client Unpacks Snapshot\nnet_poll_state() overwrites local coordinates with Host truth", fillcolor="#DCFCE7", color="#16A34A"];
+    step7 [label="7. Both Draw Display (render_field)\nBoth machines paint identical frames on their screens (Zero Desync!)", fillcolor="#DCFCE7", color="#16A34A"];
+
+    start -> frame_loop;
+    frame_loop -> step1;
+    step1 -> step2;
+    step2 -> step3;
+    step3 -> step4;
+    step4 -> step5;
+    step5 -> step6;
+    step6 -> step7;
+    step7 -> frame_loop [label="Next Frame", style="dashed"];
+}

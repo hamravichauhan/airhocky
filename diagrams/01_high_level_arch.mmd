@@ -1,0 +1,40 @@
+flowchart TD
+    subgraph Host ["HOST MACHINE (Game Server & Authoritative Simulator)"]
+        direction TB
+        subgraph HostInputs ["Host Controls"]
+            InputH["Host Input (input.c)\n• WASD / Mouse Position"]
+            AI["AI Controller (ai.c)\n• 5-State Machine & Adaptive Bias"]
+        end
+        Phys["Authoritative Physics Engine (game.c)\n• 6 Sub-steps per Frame • Magnus Spin Curve • Flick Shot Boost"]
+        subgraph HostOutputs ["Host Output Subsystems"]
+            NetHost["Host POSIX Socket (net.c)\n• Port 50505 (O_NONBLOCK)"]
+            RenderH["Raylib Renderer (render.c)\n• 4 Visual Themes & Heatmap"]
+            AudioH["Procedural Audio DSP (audio.c)\n• Synthesized Sine/Noise Waves"]
+        end
+    end
+
+    subgraph Client ["CLIENT MACHINE (Remote Player Node)"]
+        direction TB
+        InputC["Client Input (input.c)\n• Captures Local WASD / Mouse"]
+        NetClient["Client POSIX Socket (net.c)\n• Non-Blocking TCP Socket"]
+        RenderC["Client Renderer (render.c)\n• Paints Host World Snapshot"]
+    end
+
+    InputH --> Phys
+    AI --> Phys
+    NetClient -- "1. MSG_INPUT: Paddle Target (tx, ty)" --> NetHost
+    NetHost --> Phys
+    Phys -- "2. MSG_STATE: Full World Snapshot" --> NetClient
+    Phys --> RenderH
+    Phys --> AudioH
+    NetClient --> RenderC
+
+    style Host fill:#F8FAFC,stroke:#1E3A8A,stroke-width:3px
+    style Client fill:#F0F9FF,stroke:#0284C7,stroke-width:3px
+    style Phys fill:#FEF08A,stroke:#CA8A04,stroke-width:2.5px
+    style NetHost fill:#DBEAFE,stroke:#1E3A8A,stroke-width:2px
+    style NetClient fill:#BAE6FD,stroke:#0284C7,stroke-width:2px
+    style RenderH fill:#DCFCE7,stroke:#16A34A,stroke-width:2px
+    style RenderC fill:#DCFCE7,stroke:#16A34A,stroke-width:2px
+    style AudioH fill:#FCE7F3,stroke:#DB2777,stroke-width:2px
+    style AI fill:#E0E7FF,stroke:#4338CA,stroke-width:2px

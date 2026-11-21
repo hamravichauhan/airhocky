@@ -1,0 +1,21 @@
+stateDiagram-v2
+    [*] --> DEFEND : Match Start / Puck in Player Half
+    DEFEND --> INTERCEPT : Puck Crosses Midfield & Heading North
+    INTERCEPT --> ATTACK : Puck Speed Drops Below Strike Threshold
+    ATTACK --> STRIKE : Aligned with Puck & Player Goal Slot
+    STRIKE --> DEFEND : Strike Executed / Puck Cleared Back
+    INTERCEPT --> DEFEND : Puck Cleared by Defense
+    DEFEND --> RESET : Goal Scored / Puck Reset
+    RESET --> DEFEND : 3-Second Countdown Completes
+
+    note right of DEFEND
+        ADAPTIVE HABIT TRACKING:
+        AI shifts resting defense toward
+        player's favorite scoring quadrant
+    end note
+
+    note right of STRIKE
+        STRIKE WINDUP:
+        AI paddle steps back 20px before
+        explosive forward thrust
+    end note

@@ -30,5 +30,6 @@ const Theme *themes_get(ThemeId id);
 const char *themes_name(ThemeId id);
 void themes_next(void);
 ThemeId themes_current(void);
+void themes_set_by_index(int idx);
 
 #endif

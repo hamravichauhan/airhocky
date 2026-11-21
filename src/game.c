@@ -37,8 +37,8 @@ static void update_paddle(Body *pad, float tx, float ty, bool is_p1,
     else
     {
         float l = sqrtf(len2(ax, ay));
-        ax = ax / l * PADDLE_ACCEL;
-        ay = ay / l * PADDLE_ACCEL;
+        ax = ax / l * RT_PADDLE_ACCEL;
+        ay = ay / l * RT_PADDLE_ACCEL;
         pad->vx += ax * dt;
         pad->vy += ay * dt;
     }
@@ -46,7 +46,7 @@ static void update_paddle(Body *pad, float tx, float ty, bool is_p1,
     pad->vx -= pad->vx * PADDLE_FRICTION * dt;
     pad->vy -= pad->vy * PADDLE_FRICTION * dt;
 
-    clamp_speed(pad, PADDLE_MAX_SPEED);
+    clamp_speed(pad, RT_PADDLE_MAX);
 
     pad->x += pad->vx * dt;
     pad->y += pad->vy * dt;
@@ -109,15 +109,10 @@ static void collide_paddle(GameState *g, Body *puck, float *spin,
         float vt = rvx * tx + rvy * ty;
         *spin += vt * 0.0015f;
 
-        /* apply skill-shot spin bias from player */
         if (pad == &g->p1 && g->p1_spin_bias != 0.0f)
-        {
             *spin += g->p1_spin_bias * 12.0f;
-        }
         if (pad == &g->p2 && g->p2_spin_bias != 0.0f)
-        {
             *spin += g->p2_spin_bias * 12.0f;
-        }
 
         float paddle_speed = sqrtf(len2(pad->vx, pad->vy));
         if (paddle_speed > 50.0f)
@@ -142,7 +137,7 @@ static void collide_paddle(GameState *g, Body *puck, float *spin,
         g->ev_hit_dir_y = ny;
     }
 
-    clamp_speed(puck, PUCK_MAX_SPEED);
+    clamp_speed(puck, RT_PUCK_MAX_SPEED);
 }
 
 static void integrate_puck(GameState *g, float dt, float r1, float r2)
@@ -254,7 +249,6 @@ void game_init(GameState *g, GameMode mode)
     g->p2.x = FIELD_W / 2.0f;
     g->p2.y = 100.0f;
 
-    /* power-up defaults */
     g->p1_radius_mult = 1.0f;
     g->p2_radius_mult = 1.0f;
     g->puck_speed_mult = 1.0f;
@@ -283,7 +277,6 @@ void game_update(GameState *g, float dt,
     if (dt > 0.05f)
         dt = 0.05f;
 
-    /* clear per-frame events */
     g->ev_hit = g->ev_wall = g->ev_goal = false;
     g->ev_go = false;
     g->ev_count_tick = -1;
@@ -344,7 +337,7 @@ void game_update(GameState *g, float dt,
     float sp = sqrtf(len2(g->puck.vx, g->puck.vy));
     if (sp > 0.01f)
     {
-        float drop = PUCK_FRICTION * sp * dt;
+        float drop = RT_PUCK_FRICTION * sp * dt;
         float k = (sp - drop) / sp;
         if (k < 0)
             k = 0;
@@ -362,11 +355,10 @@ void game_update(GameState *g, float dt,
 
     integrate_puck(g, dt, p1_radius, p2_radius);
 
-    /* slow-mo: cap puck speed if active */
     if (g->puck_speed_mult < 1.0f)
     {
         float s2 = sqrtf(len2(g->puck.vx, g->puck.vy));
-        float cap = PUCK_MAX_SPEED * g->puck_speed_mult;
+        float cap = RT_PUCK_MAX_SPEED * g->puck_speed_mult;
         if (s2 > cap && s2 > 0.01f)
         {
             float k = cap / s2;
@@ -385,7 +377,7 @@ void game_update(GameState *g, float dt,
 
 bool game_check_win(const GameState *g)
 {
-    return g->score1 >= WIN_SCORE || g->score2 >= WIN_SCORE;
+    return g->score1 >= RT_WIN_SCORE || g->score2 >= RT_WIN_SCORE;
 }
 
 void game_apply_spin_bias(GameState *g, int player, float bias)

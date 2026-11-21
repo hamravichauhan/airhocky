@@ -1,0 +1,27 @@
+flowchart LR
+    In["Object Contact"] --> PadCol["Paddle Collision
+• Normal Impulse: -(1+e)*vn
+• Friction -> Angular Spin
+• Flick Boost: +0.35*pad_v"]
+    PadCol --> WallCheck{"Boundary Check"}
+    WallCheck -- "Goal Slot" --> Goal["Goal Scored!
+• Score Counter++
+• 14px Screen Shake
+• 3-Second Reset"]
+    WallCheck -- "Solid Cushion" --> Bounce["Wall Bounce
+• Invert Normal Velocity
+• Emit Sparks & SFX"]
+    WallCheck -- "Open Rink" --> Magnus["Magnus Effect
+Curve velocity by spin:
+curve = spin * 0.0006"]
+    Bounce --> Magnus
+    Goal --> Out["Substep Complete"]
+    Magnus --> Out
+
+    style In fill:#E2E8F0,stroke:#475569,stroke-width:2px
+    style PadCol fill:#FEF08A,stroke:#CA8A04,stroke-width:2.5px
+    style WallCheck fill:#F8FAFC,stroke:#475569,stroke-width:2px
+    style Goal fill:#FEE2E2,stroke:#DC2626,stroke-width:2.5px
+    style WallBounce fill:#E0E7FF,stroke:#4338CA,stroke-width:2px
+    style Magnus fill:#DCFCE7,stroke:#16A34A,stroke-width:2.5px
+    style Out fill:#DCFCE7,stroke:#16A34A,stroke-width:2px

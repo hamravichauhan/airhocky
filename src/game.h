@@ -10,9 +10,9 @@
 #define PADDLE_R 28
 #define PUCK_R 14
 #define GOAL_WIDTH 180
-#define WIN_SCORE 7
 
-/* ----- Physics tuning ----- */
+/* ----- Default physics tuning (overridden by RT_* below) ----- */
+#define WIN_SCORE 7
 #define PUCK_MAX_SPEED 1400.0f
 #define PUCK_MIN_SPEED 10.0f
 #define PUCK_FRICTION 0.35f
@@ -23,6 +23,13 @@
 #define PUCK_MASS 1.0f
 #define COLLISION_RESTITUTION 0.92f
 #define MAX_SUBSTEPS 6
+
+/* ----- Runtime-overridable globals (set by settings_apply) ----- */
+extern int RT_WIN_SCORE;
+extern float RT_PUCK_MAX_SPEED;
+extern float RT_PUCK_FRICTION;
+extern float RT_PADDLE_ACCEL;
+extern float RT_PADDLE_MAX;
 
 /* ----- Game modes ----- */
 typedef enum
@@ -73,12 +80,12 @@ typedef struct
     float ev_wall_pos_x, ev_wall_pos_y;
 
     /* ----- power-up modifiers (set by main.c before game_update) ----- */
-    float p1_radius_mult; /* 1.0 = normal, 1.5 = grown */
+    float p1_radius_mult;
     float p2_radius_mult;
-    float puck_speed_mult; /* 1.0 = normal, 0.4 = slowed */
+    float puck_speed_mult;
     bool p1_frozen;
     bool p2_frozen;
-    float p1_spin_bias; /* -1..1 — negative = spin one way */
+    float p1_spin_bias;
     float p2_spin_bias;
 } GameState;
 

@@ -9,6 +9,7 @@
 #include "themes.h"
 #include "tournament.h"
 #include "coach.h"
+#include "ui.h"
 
 void render_init(void) {}
 
@@ -147,43 +148,6 @@ void render_field(const GameState *g)
 }
 
 /* ------- menu ------- */
-
-void render_menu(int selected)
-{
-    DrawRectangleGradientV(0, 0, FIELD_W, FIELD_H + 120,
-                           (Color){10, 25, 45, 255},
-                           (Color){3, 8, 18, 255});
-
-    const char *title = "AIR HOCKEY";
-    int tw = MeasureText(title, 56);
-    DrawText(title, FIELD_W / 2 - tw / 2, 60, 56, RAYWHITE);
-    DrawText("C / SEA Project", FIELD_W / 2 - 70, 118, 16, GRAY);
-
-    const char *items[8] = {
-        "Solo vs AI",
-        "Local 2-Player",
-        "Host LAN Game",
-        "Join LAN Game",
-        "Time Attack",
-        "Tournament",
-        "AI vs AI Demo",
-        "Quit"};
-    for (int i = 0; i < 8; i++)
-    {
-        Color c = (i == selected) ? YELLOW : LIGHTGRAY;
-        int iw = MeasureText(items[i], 26);
-        int x = FIELD_W / 2 - iw / 2;
-        int y = 155 + i * 44;
-        DrawText(items[i], x, y, 26, c);
-        if (i == selected)
-        {
-            DrawText(">", x - 30, y, 26, YELLOW);
-            DrawRectangle(x - 34, y + 30, iw + 60, 2, YELLOW);
-        }
-    }
-    DrawText("W/S/Arrows to navigate, ENTER to select",
-             FIELD_W / 2 - 190, FIELD_H + 40, 18, GRAY);
-}
 
 /* ------- gameover ------- */
 
@@ -625,4 +589,32 @@ void render_replay_banner(bool is_replay, int frames_left)
         DrawText(txt, 30, y, fs, c);
         DrawCircle(18, y + fs / 2, 5, c);
     }
+}
+
+void render_menu(int selected)
+{
+    ui_background();
+
+    float pulse = 0.5f + 0.5f * sinf(GetTime() * 3.0f);
+    ui_title("AIR HOCKEY", pulse * 0.6f);
+    ui_subtitle("C / SEA Project - C Programming");
+
+    const char *items[9] = {
+        "Solo Mode",
+        "Local 2-Player",
+        "Host LAN Game",
+        "Join LAN Game",
+        "Time Attack",
+        "Tournament",
+        "AI vs AI Demo",
+        "Settings",
+        "Quit"};
+
+    /* Panel behind menu */
+    Rectangle panel = {FIELD_W / 2 - 220, 160, 440, 9 * 44 + 40};
+    ui_panel(panel);
+
+    ui_menu(items, 9, selected, FIELD_W / 2, 185, 44);
+
+    ui_hint("W/S or Arrows to navigate   ENTER to select");
 }

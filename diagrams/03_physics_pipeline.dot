@@ -1,0 +1,37 @@
+
+digraph PhysicsPipeline {
+    graph [rankdir=TB, bgcolor="transparent", fontname="Helvetica", nodesep=0.4, ranksep=0.5];
+    node [fontname="Helvetica", shape=box, style="filled,rounded", penwidth=1.5, margin="0.2,0.12", fontsize=11];
+    edge [fontname="Helvetica", fontsize=10, color="#334155", penwidth=1.4];
+
+    start [label="Frame Physics Start (dt ≤ 0.05s)", fillcolor="#E2E8F0", color="#475569", fontname="Helvetica-Bold"];
+    calc_speed [label="Calculate Current Puck Velocity\nspeed = sqrt(vx² + vy²)", fillcolor="#F1F5F9", color="#64748B"];
+    calc_steps [label="Determine Dynamic Substep Count\nsteps = 1 + (speed * dt / (PUCK_R * 0.5))\nClamp: 1 ≤ steps ≤ 6", fillcolor="#FEF3C7", color="#D97706"];
+    
+    substep_start [label="Substep Integration (sdt = dt / steps)\npuck.x += puck.vx * sdt\npuck.y += puck.vy * sdt", fillcolor="#DBEAFE", color="#1E3A8A"];
+    
+    collide_paddles [label="Collide With Paddles 1 & 2\n• Positional Overlap Correction\n• Normal Impulse: j = -(1 + e) * vn\n• Tangential Friction -> Imparts Spin\n• Flick Boost: +0.35 * paddle_speed", fillcolor="#FEF08A", color="#CA8A04"];
+    
+    check_wall [label="Check Arena Cushion Boundaries", shape=diamond, fillcolor="#F8FAFC", color="#475569"];
+    
+    goal_scored [label="Goal Opening Hit!\n• Increment Score\n• Trigger Shake (14px) & Flash\n• Reset Puck to Center (3s timer)", fillcolor="#FEE2E2", color="#DC2626"];
+    wall_bounce [label="Solid Wall Hit\n• Invert Normal Velocity (vx or vy)\n• Emit Impact Sparks & Play SFX", fillcolor="#E0E7FF", color="#4338CA"];
+    
+    magnus [label="Apply Magnus Effect (Curving Puck)\ncurve = spin * 0.0006\nRotate velocity vector perpendicular to flight", fillcolor="#DCFCE7", color="#16A34A"];
+    
+    check_substeps [label="More Substeps Remaining?", shape=diamond, fillcolor="#F8FAFC", color="#475569"];
+    end [label="Frame Physics Resolved", fillcolor="#E2E8F0", color="#475569", fontname="Helvetica-Bold"];
+
+    start -> calc_speed;
+    calc_speed -> calc_steps;
+    calc_steps -> substep_start;
+    substep_start -> collide_paddles;
+    collide_paddles -> check_wall;
+    check_wall -> goal_scored [label="In Goal Slot"];
+    check_wall -> wall_bounce [label="Cushion Boundary"];
+    check_wall -> magnus [label="Open Rink"];
+    wall_bounce -> magnus;
+    magnus -> check_substeps;
+    check_substeps -> substep_start [label="Yes (Loop)", style="bold", color="#1E3A8A"];
+    check_substeps -> end [label="No (Done)"];
+}

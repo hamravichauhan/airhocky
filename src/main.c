@@ -17,6 +17,10 @@
 #include "tournament.h"
 #include "coach.h"
 #include "replay.h"
+#include "settings.h"
+#include "settings_ui.h"
+#include "ui.h"
+#include "ui_transition.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -35,8 +39,22 @@ typedef enum
     SCREEN_TIME_ATTACK_OVER,
     SCREEN_TOURNAMENT_DIFF,
     SCREEN_COACH,
-    SCREEN_REPLAY_LOADED
+    SCREEN_REPLAY_LOADED,
+    SCREEN_SETTINGS
 } Screen;
+
+static AIDifficulty ai_from_settings(const GameSettings *s)
+{
+    switch (s->ai_difficulty)
+    {
+    case 0:
+        return AI_EASY;
+    case 2:
+        return AI_HARD;
+    default:
+        return AI_MEDIUM;
+    }
+}
 
 int main(void)
 {
@@ -48,6 +66,10 @@ int main(void)
     audio_init();
     particles_init();
     themes_init();
+
+    GameSettings settings;
+    settings_load(&settings);
+    settings_apply(&settings);
 
     Screen screen = SCREEN_MENU;
     int menu_sel = 0;
@@ -105,11 +127,25 @@ int main(void)
     char join_ip[64] = "127.0.0.1";
     int ip_len = 9;
 
+    UIScreenTransition trans;
+    ui_trans_init(&trans);
+
+    float toast_timer = 0;
+
+#define GO(next)                \
+    do                          \
+    {                           \
+        screen = (next);        \
+        ui_trans_begin(&trans); \
+    } while (0)
+
     while (!WindowShouldClose())
     {
         float dt = GetFrameTime();
         if (dt > 0.05f)
             dt = 0.05f;
+
+        ui_trans_update(&trans, dt);
 
         if (screen == SCREEN_PLAYING || screen == SCREEN_TIME_ATTACK)
         {
@@ -132,9 +168,10 @@ int main(void)
                 switch (menu_sel)
                 {
                 case 0: /* Solo */
-                    screen = SCREEN_SOLO_DIFF;
+                    GO(SCREEN_SOLO_DIFF);
                     break;
                 case 1: /* Local */
+                    settings_apply(&settings);
                     game_init(&game, MODE_LOCAL);
                     powerup_init(&powerups);
                     stats_init(&stats);
@@ -143,20 +180,22 @@ int main(void)
                     heat.visible = true;
                     replay_init(&replay);
                     demo_mode = false;
-                    screen = SCREEN_PLAYING;
+                    GO(SCREEN_PLAYING);
                     break;
                 case 2: /* Host */
+                    settings_apply(&settings);
                     if (net_host_start())
-                        screen = SCREEN_HOST_WAIT;
+                        GO(SCREEN_HOST_WAIT);
                     else
                         TraceLog(LOG_ERROR, "Failed to host");
                     break;
                 case 3: /* Join */
-                    screen = SCREEN_JOIN_INPUT;
+                    GO(SCREEN_JOIN_INPUT);
                     break;
                 case 4: /* Time Attack */
+                    settings_apply(&settings);
                     game_init(&game, MODE_SOLO);
-                    ai_init(&ai, AI_MEDIUM);
+                    ai_init(&ai, ai_from_settings(&settings));
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
@@ -167,14 +206,16 @@ int main(void)
                     ta_time_left = 60.0f;
                     ta_score = 0;
                     ta_active = true;
-                    screen = SCREEN_TIME_ATTACK;
+                    GO(SCREEN_TIME_ATTACK);
                     break;
                 case 5: /* Tournament */
-                    screen = SCREEN_TOURNAMENT_DIFF;
+                    settings_apply(&settings);
+                    GO(SCREEN_TOURNAMENT_DIFF);
                     break;
                 case 6: /* AI vs AI Demo */
+                    settings_apply(&settings);
                     game_init(&game, MODE_SOLO);
-                    ai_init(&ai, AI_MEDIUM);
+                    ai_init(&ai, ai_from_settings(&settings));
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
@@ -182,30 +223,11 @@ int main(void)
                     heat.visible = false;
                     replay_init(&replay);
                     demo_mode = true;
-                    screen = SCREEN_PLAYING;
+                    GO(SCREEN_PLAYING);
                     break;
-                case 7:
-                { /* Watch Replay */
-                    replay_init(&loaded_replay);
-                    if (replay_load(&loaded_replay.buf, "replay.replay"))
-                    {
-                        loaded_replay.active = true;
-                        loaded_replay.play_start = 0;
-                        loaded_replay.play_idx = 0;
-                        loaded_replay.frame_timer = 0;
-
-                        /* Reset game state so old positions don't show */
-                        memset(&game, 0, sizeof(game));
-
-                        screen = SCREEN_REPLAY_LOADED;
-                        TraceLog(LOG_INFO, "Replay loaded");
-                    }
-                    else
-                    {
-                        TraceLog(LOG_WARNING, "No replay.replay found");
-                    }
+                case 7: /* Settings */
+                    GO(SCREEN_SETTINGS);
                     break;
-                }
                 case 8: /* Quit */
                     audio_close();
                     CloseAudioDevice();
@@ -215,13 +237,35 @@ int main(void)
             }
             break;
 
+        case SCREEN_SETTINGS:
+            if (ui_back_button_input())
+            {
+                settings_save(&settings);
+                settings_apply(&settings);
+                toast_timer = 1.5f;
+                GO(SCREEN_MENU);
+                menu_sel = 7;
+                break;
+            }
+            if (settings_ui_update(&settings))
+            {
+                toast_timer = 1.5f;
+                GO(SCREEN_MENU);
+                menu_sel = 7;
+            }
+            break;
+
         case SCREEN_TOURNAMENT_DIFF:
-            if (IsKeyPressed(KEY_ESCAPE))
-                screen = SCREEN_MENU;
+            if (ui_back_button_input())
+            {
+                GO(SCREEN_MENU);
+                break;
+            }
             if (IsKeyPressed(KEY_ONE) || IsKeyPressed(KEY_KP_1))
             {
                 tournament_init(&tour, TOUR_BO3);
                 in_tournament = true;
+                settings_apply(&settings);
                 game_init(&game, MODE_LOCAL);
                 powerup_init(&powerups);
                 stats_init(&stats);
@@ -230,12 +274,13 @@ int main(void)
                 heat.visible = true;
                 replay_init(&replay);
                 demo_mode = false;
-                screen = SCREEN_PLAYING;
+                GO(SCREEN_PLAYING);
             }
             if (IsKeyPressed(KEY_TWO) || IsKeyPressed(KEY_KP_2))
             {
                 tournament_init(&tour, TOUR_BO5);
                 in_tournament = true;
+                settings_apply(&settings);
                 game_init(&game, MODE_LOCAL);
                 powerup_init(&powerups);
                 stats_init(&stats);
@@ -244,13 +289,16 @@ int main(void)
                 heat.visible = true;
                 replay_init(&replay);
                 demo_mode = false;
-                screen = SCREEN_PLAYING;
+                GO(SCREEN_PLAYING);
             }
             break;
 
         case SCREEN_SOLO_DIFF:
-            if (IsKeyPressed(KEY_ESCAPE))
-                screen = SCREEN_MENU;
+            if (ui_back_button_input())
+            {
+                GO(SCREEN_MENU);
+                break;
+            }
             if (IsKeyPressed(KEY_ONE) || IsKeyPressed(KEY_KP_1))
             {
                 game_init(&game, MODE_SOLO);
@@ -262,7 +310,7 @@ int main(void)
                 heat.visible = true;
                 replay_init(&replay);
                 demo_mode = false;
-                screen = SCREEN_PLAYING;
+                GO(SCREEN_PLAYING);
             }
             if (IsKeyPressed(KEY_TWO) || IsKeyPressed(KEY_KP_2))
             {
@@ -275,7 +323,7 @@ int main(void)
                 heat.visible = true;
                 replay_init(&replay);
                 demo_mode = false;
-                screen = SCREEN_PLAYING;
+                GO(SCREEN_PLAYING);
             }
             if (IsKeyPressed(KEY_THREE) || IsKeyPressed(KEY_KP_3))
             {
@@ -288,70 +336,75 @@ int main(void)
                 heat.visible = true;
                 replay_init(&replay);
                 demo_mode = false;
-                screen = SCREEN_PLAYING;
+                GO(SCREEN_PLAYING);
             }
             break;
 
         case SCREEN_HOST_WAIT:
-        {
-            float tx, ty;
-            (void)net_poll_input(&tx, &ty);
-            if (net_is_connected())
-            {
-                game_init(&game, MODE_HOST);
-                powerup_init(&powerups);
-                stats_init(&stats);
-                particles_clear();
-                heatmap_init(&heat);
-                replay_init(&replay);
-                demo_mode = false;
-                screen = SCREEN_PLAYING;
-            }
-        }
-            if (IsKeyPressed(KEY_ESCAPE))
+            if (ui_back_button_input())
             {
                 net_close();
-                screen = SCREEN_MENU;
+                GO(SCREEN_MENU);
+                break;
             }
-            break;
-
-        case SCREEN_JOIN_INPUT:
-        {
-            int key = GetCharPressed();
-            while (key > 0)
             {
-                if (key >= 32 && key < 127 && ip_len < 63)
+                float tx, ty;
+                (void)net_poll_input(&tx, &ty);
+                if (net_is_connected())
                 {
-                    join_ip[ip_len++] = (char)key;
-                    join_ip[ip_len] = '\0';
-                }
-                key = GetCharPressed();
-            }
-            if (IsKeyPressed(KEY_BACKSPACE) && ip_len > 0)
-                join_ip[--ip_len] = '\0';
-
-            if (IsKeyPressed(KEY_ENTER))
-            {
-                if (net_client_connect(join_ip))
-                {
-                    game_init(&game, MODE_CLIENT);
+                    game_init(&game, MODE_HOST);
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
                     heatmap_init(&heat);
                     replay_init(&replay);
                     demo_mode = false;
-                    screen = SCREEN_PLAYING;
-                }
-                else
-                {
-                    TraceLog(LOG_ERROR, "Connect failed");
+                    GO(SCREEN_PLAYING);
                 }
             }
-            if (IsKeyPressed(KEY_ESCAPE))
-                screen = SCREEN_MENU;
             break;
-        }
+
+        case SCREEN_JOIN_INPUT:
+            if (ui_back_button_input())
+            {
+                GO(SCREEN_MENU);
+                break;
+            }
+            {
+                int key = GetCharPressed();
+                while (key > 0)
+                {
+                    if (key >= 32 && key < 127 && ip_len < 63)
+                    {
+                        join_ip[ip_len++] = (char)key;
+                        join_ip[ip_len] = '\0';
+                    }
+                    key = GetCharPressed();
+                }
+                if (IsKeyPressed(KEY_BACKSPACE) && ip_len > 0)
+                    join_ip[--ip_len] = '\0';
+
+                if (IsKeyPressed(KEY_ENTER))
+                {
+                    settings_apply(&settings);
+                    if (net_client_connect(join_ip))
+                    {
+                        game_init(&game, MODE_CLIENT);
+                        powerup_init(&powerups);
+                        stats_init(&stats);
+                        particles_clear();
+                        heatmap_init(&heat);
+                        replay_init(&replay);
+                        demo_mode = false;
+                        GO(SCREEN_PLAYING);
+                    }
+                    else
+                    {
+                        TraceLog(LOG_ERROR, "Connect failed");
+                    }
+                }
+            }
+            break;
 
         case SCREEN_PLAYING:
         case SCREEN_TIME_ATTACK:
@@ -361,20 +414,26 @@ int main(void)
             if (demo_mode && IsKeyPressed(KEY_ESCAPE))
             {
                 demo_mode = false;
-                screen = SCREEN_MENU;
+                GO(SCREEN_MENU);
                 menu_sel = 0;
                 break;
             }
 
-            /* ---------- REPLAY HANDLING ---------- */
-            /* If a replay is running, don't simulate physics */
+            /* ESC from gameplay → back to menu (not during demo/replay) */
+            if (!demo_mode && !replay_is_active(&replay) && IsKeyPressed(KEY_ESCAPE))
+            {
+                net_close();
+                GO(SCREEN_MENU);
+                menu_sel = 0;
+                break;
+            }
+
             if (replay_is_active(&replay))
             {
                 replay_update(&replay, dt);
 
                 if (!replay_is_active(&replay))
                 {
-                    /* Replay just ended → restore saved state */
                     if (had_replay)
                     {
                         game = game_before_replay;
@@ -383,7 +442,6 @@ int main(void)
                 }
                 else
                 {
-                    /* Fetch current replay frame into game state */
                     ReplayFrame rf;
                     replay_get_current(&replay, &rf);
                     game.p1.x = rf.p1x;
@@ -397,34 +455,24 @@ int main(void)
                     game.puck_spin = rf.spin;
                 }
 
-                break; /* skip rest of SCREEN_PLAYING update */
-            }
-
-            /* Trigger replay manually */
-            if (IsKeyPressed(KEY_V))
-            {
-                /* Save current state so we can restore it after */
-                game_before_replay = game;
-                had_replay = true;
-
-                replay_start(&replay);
-                /* If replay didn't activate (not enough data), undo */
-                if (!replay_is_active(&replay))
-                {
-                    had_replay = false;
-                }
                 break;
             }
 
-            /* Save to disk */
+            if (IsKeyPressed(KEY_V))
+            {
+                game_before_replay = game;
+                had_replay = true;
+                replay_start(&replay);
+                if (!replay_is_active(&replay))
+                    had_replay = false;
+                break;
+            }
+
             if (IsKeyPressed(KEY_F5))
             {
                 if (replay_save(&replay.buf, "replay.replay"))
-                {
-                    TraceLog(LOG_INFO, "Replay saved to replay.replay");
-                }
+                    toast_timer = 1.5f;
             }
-            /* ---------- END REPLAY HANDLING ---------- */
 
             if (is_ta && ta_active)
             {
@@ -435,7 +483,7 @@ int main(void)
                     ta_active = false;
                     if (ta_score > ta_best)
                         ta_best = ta_score;
-                    screen = SCREEN_TIME_ATTACK_OVER;
+                    GO(SCREEN_TIME_ATTACK_OVER);
                     break;
                 }
             }
@@ -482,14 +530,11 @@ int main(void)
                 {
                     ai_update(&ai, &game, dt);
                     ai_get_target(&ai, &p2x, &p2y);
-
                     p1x = game.puck.x;
                     p1y = FIELD_H - 100.0f;
                     if (game.puck.y > FIELD_H / 2.0f &&
                         game.puck.y < FIELD_H - 60.0f)
-                    {
                         p1y = game.puck.y - 30.0f;
-                    }
                 }
                 else
                 {
@@ -515,7 +560,7 @@ int main(void)
                 net_send_state(&game);
                 if (!net_is_connected())
                 {
-                    screen = SCREEN_MENU;
+                    GO(SCREEN_MENU);
                     net_close();
                 }
             }
@@ -529,12 +574,11 @@ int main(void)
                 }
                 if (!net_is_connected())
                 {
-                    screen = SCREEN_MENU;
+                    GO(SCREEN_MENU);
                     net_close();
                 }
             }
 
-            /* Record frame into replay buffer */
             replay_record(&replay, &game);
 
             stats_update(&stats, &game, dt);
@@ -607,9 +651,8 @@ int main(void)
             float puck_speed = sqrtf(game.puck.vx * game.puck.vx +
                                      game.puck.vy * game.puck.vy);
             if (puck_speed > 80.0f && game.reset_timer <= 0)
-            {
                 particles_trail_add((Vector2){game.puck.x, game.puck.y});
-            }
+
             if (game.ev_hit && game.ev_hit_pos_valid)
             {
                 Vector2 hp = {game.ev_hit_pos_x, game.ev_hit_pos_y};
@@ -669,10 +712,11 @@ int main(void)
                     if (tournament_is_over(&tour))
                     {
                         in_tournament = false;
-                        screen = SCREEN_STATS;
+                        GO(SCREEN_STATS);
                     }
                     else
                     {
+                        settings_apply(&settings);
                         game_init(&game, MODE_LOCAL);
                         powerup_init(&powerups);
                         stats_init(&stats);
@@ -680,17 +724,12 @@ int main(void)
                         heatmap_init(&heat);
                         heat.visible = true;
                         replay_init(&replay);
-                        screen = SCREEN_PLAYING;
+                        GO(SCREEN_PLAYING);
                     }
-                }
-                else if (game.mode == MODE_SOLO)
-                {
-                    coach_analyze(&coach, &stats, winner == 1);
-                    screen = SCREEN_COACH;
                 }
                 else
                 {
-                    screen = SCREEN_STATS;
+                    GO(SCREEN_STATS);
                 }
             }
             break;
@@ -698,11 +737,10 @@ int main(void)
 
         case SCREEN_REPLAY_LOADED:
         {
-            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+            if (ui_back_button_input())
             {
-
-                screen = SCREEN_MENU;
-                menu_sel = 0;
+                GO(SCREEN_MENU);
+                menu_sel = 8;
                 break;
             }
 
@@ -739,34 +777,38 @@ int main(void)
         }
 
         case SCREEN_COACH:
-            if (IsKeyPressed(KEY_ENTER))
+            if (ui_back_button_input())
             {
-                screen = SCREEN_MENU;
+                GO(SCREEN_MENU);
                 menu_sel = 0;
+                break;
             }
             if (IsKeyPressed(KEY_R))
             {
+                settings_apply(&settings);
                 game_init(&game, MODE_SOLO);
-                ai_init(&ai, AI_MEDIUM);
+                ai_init(&ai, ai_from_settings(&settings));
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
                 heatmap_init(&heat);
                 replay_init(&replay);
-                screen = SCREEN_PLAYING;
+                GO(SCREEN_PLAYING);
             }
             break;
 
         case SCREEN_TIME_ATTACK_OVER:
-            if (IsKeyPressed(KEY_ENTER))
+            if (ui_back_button_input())
             {
-                screen = SCREEN_MENU;
+                GO(SCREEN_MENU);
                 menu_sel = 0;
+                break;
             }
             if (IsKeyPressed(KEY_R))
             {
+                settings_apply(&settings);
                 game_init(&game, MODE_SOLO);
-                ai_init(&ai, AI_MEDIUM);
+                ai_init(&ai, ai_from_settings(&settings));
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
@@ -776,53 +818,57 @@ int main(void)
                 ta_time_left = 60.0f;
                 ta_score = 0;
                 ta_active = true;
-                screen = SCREEN_TIME_ATTACK;
+                GO(SCREEN_TIME_ATTACK);
             }
             break;
 
         case SCREEN_STATS:
-            if (IsKeyPressed(KEY_ENTER))
+            if (ui_back_button_input())
             {
                 net_close();
-                screen = SCREEN_MENU;
+                GO(SCREEN_MENU);
                 menu_sel = 0;
+                break;
             }
             if (IsKeyPressed(KEY_R))
             {
                 net_close();
                 if (game.mode == MODE_LOCAL)
                 {
+                    settings_apply(&settings);
                     game_init(&game, MODE_LOCAL);
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
                     heatmap_init(&heat);
                     replay_init(&replay);
-                    screen = SCREEN_PLAYING;
+                    GO(SCREEN_PLAYING);
                 }
                 else if (game.mode == MODE_SOLO)
                 {
+                    settings_apply(&settings);
                     game_init(&game, MODE_SOLO);
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
                     heatmap_init(&heat);
                     replay_init(&replay);
-                    screen = SCREEN_PLAYING;
+                    GO(SCREEN_PLAYING);
                 }
                 else
                 {
-                    screen = SCREEN_MENU;
+                    GO(SCREEN_MENU);
                 }
             }
             break;
 
         case SCREEN_GAMEOVER:
-            if (IsKeyPressed(KEY_ENTER))
+            if (ui_back_button_input())
             {
                 net_close();
-                screen = SCREEN_MENU;
+                GO(SCREEN_MENU);
                 menu_sel = 0;
+                break;
             }
             break;
         }
@@ -838,42 +884,49 @@ int main(void)
             render_menu(menu_sel);
             break;
 
+        case SCREEN_SETTINGS:
+            settings_ui_draw(&settings);
+            ui_back_button_draw();
+            break;
+
         case SCREEN_SOLO_DIFF:
             render_solo_difficulty(menu_sel);
+            ui_back_button_draw();
             break;
 
         case SCREEN_TOURNAMENT_DIFF:
-            DrawRectangleGradientV(0, 0, FIELD_W, FIELD_H + 120,
-                                   (Color){10, 25, 45, 255},
-                                   (Color){3, 8, 18, 255});
-            DrawText("TOURNAMENT FORMAT",
-                     FIELD_W / 2 - MeasureText("TOURNAMENT FORMAT", 36) / 2,
-                     140, 36, RAYWHITE);
-            DrawText("1  -  Best of 3",
-                     FIELD_W / 2 - MeasureText("1  -  Best of 3", 30) / 2,
-                     260, 30, GREEN);
-            DrawText("First to 2 match wins",
-                     FIELD_W / 2 - MeasureText("First to 2 match wins", 18) / 2,
-                     298, 18, GRAY);
-            DrawText("2  -  Best of 5",
-                     FIELD_W / 2 - MeasureText("2  -  Best of 5", 30) / 2,
-                     380, 30, YELLOW);
-            DrawText("First to 3 match wins",
-                     FIELD_W / 2 - MeasureText("First to 3 match wins", 18) / 2,
-                     418, 18, GRAY);
-            DrawText("1/2 to choose   ESC = back",
-                     FIELD_W / 2 - MeasureText("1/2 to choose   ESC = back", 20) / 2,
-                     FIELD_H + 40, 20, LIGHTGRAY);
+            ui_background();
+            ui_title("TOURNAMENT FORMAT", 0.3f);
+            ui_subtitle("How many wins to take the series?");
+            {
+                Rectangle panel = {FIELD_W / 2 - 220, 180, 440, 380};
+                ui_panel(panel);
+                DrawText("1  -  Best of 3", FIELD_W / 2 - 90, 240, 30, UI_SUCCESS);
+                DrawText("First to 2 match wins", FIELD_W / 2 - 90, 278, 16, UI_TEXT_DIM);
+                DrawText("2  -  Best of 5", FIELD_W / 2 - 90, 360, 30, UI_ACCENT_HOT);
+                DrawText("First to 3 match wins", FIELD_W / 2 - 90, 398, 16, UI_TEXT_DIM);
+            }
+            ui_hint("1/2 to choose   ESC = back");
+            ui_back_button_draw();
             break;
 
         case SCREEN_HOST_WAIT:
-            render_waiting_screen("Waiting for client...  Share your IP. ESC = cancel");
+            render_waiting_screen("Waiting for client...  Share your IP.");
+            ui_back_button_draw();
             break;
 
         case SCREEN_JOIN_INPUT:
-            DrawText("Enter host IP:", 40, 200, 28, RAYWHITE);
-            DrawText(join_ip, 40, 250, 32, GREEN);
-            DrawText("ENTER = connect   ESC = back", 40, 320, 20, LIGHTGRAY);
+            ui_background();
+            ui_title("JOIN GAME", 0.3f);
+            ui_subtitle("Enter the host's IP address");
+            {
+                Rectangle panel = {FIELD_W / 2 - 220, 220, 440, 200};
+                ui_panel(panel);
+                DrawText("Host IP:", FIELD_W / 2 - 180, 260, 22, UI_TEXT);
+                DrawText(join_ip, FIELD_W / 2 - 180, 300, 26, UI_SUCCESS);
+            }
+            ui_hint("Type to enter   ENTER = connect   ESC = back");
+            ui_back_button_draw();
             break;
 
         case SCREEN_PLAYING:
@@ -907,7 +960,7 @@ int main(void)
             {
                 DrawText(TextFormat("Theme: %s (T)", themes_name(themes_current())),
                          10, FIELD_H + 130, 16, GRAY);
-                DrawText("TAB: heatmap  CTRL: trajectory  SHIFT: spin  V: replay  F5: save",
+                DrawText("ESC: quit to menu   TAB: heatmap   CTRL: trajectory   SHIFT: spin   V: replay   F5: save",
                          10, FIELD_H + 150, 14, DARKGRAY);
             }
             break;
@@ -930,7 +983,6 @@ int main(void)
         case SCREEN_REPLAY_LOADED:
             render_field(&game);
             particles_draw(100);
-
             {
                 const char *banner = "WATCHING REPLAY";
                 int bw = MeasureText(banner, 30);
@@ -940,19 +992,20 @@ int main(void)
                               (Color){0, 0, 0, 160});
                 DrawText(banner, bx, by, 30, (Color){255, 220, 100, 255});
             }
-
-            DrawText("ESC = exit", FIELD_W / 2 - 60,
-                     FIELD_H + 40, 20, LIGHTGRAY);
+            ui_hint("ESC = exit");
+            ui_back_button_draw();
             break;
 
         case SCREEN_TIME_ATTACK_OVER:
             render_time_attack_results(ta_score, ta_best);
+            ui_back_button_draw();
             break;
 
         case SCREEN_COACH:
         {
             int winner = (stats.goals_p1 > stats.goals_p2) ? 1 : 2;
             render_coach_screen(&coach, winner);
+            ui_back_button_draw();
             break;
         }
 
@@ -960,6 +1013,7 @@ int main(void)
         {
             int winner = (stats.goals_p1 > stats.goals_p2) ? 1 : 2;
             render_stats_screen(&stats, &records, winner);
+            ui_back_button_draw();
             break;
         }
 
@@ -967,12 +1021,20 @@ int main(void)
         {
             int winner = (game.score1 > game.score2) ? 1 : 2;
             render_gameover(&game, winner);
+            ui_back_button_draw();
             break;
         }
         }
 
+        if (toast_timer > 0)
+            ui_toast("Settings saved!", &toast_timer);
+
+        ui_trans_draw(&trans);
+
         EndDrawing();
     }
+
+#undef GO
 
     audio_close();
     CloseAudioDevice();
