@@ -191,7 +191,10 @@ int main(void)
                         TraceLog(LOG_ERROR, "Failed to host");
                     break;
                 case 3: /* Join */
+                    join_ip[0] = '\0';
+                    ip_len = 0;
                     join_error[0] = '\0';
+                    net_discovery_start();
                     GO(SCREEN_JOIN_INPUT);
                     break;
                 case 4: /* Time Attack */
@@ -349,6 +352,7 @@ int main(void)
                 GO(SCREEN_MENU);
                 break;
             }
+            net_beacon_tick();
             {
                 float tx, ty;
                 (void)net_poll_input(&tx, &ty);
@@ -369,6 +373,7 @@ int main(void)
         case SCREEN_JOIN_INPUT:
             if (ui_back_button_input())
             {
+                net_discovery_stop();
                 GO(SCREEN_MENU);
                 break;
             }
@@ -407,15 +412,17 @@ int main(void)
 
                 if (IsKeyPressed(KEY_ENTER))
                 {
-                    if (ip_len == 0)
+                    char target_ip[64] = "";
+                    if (!net_resolve_code_or_ip(join_ip, target_ip, sizeof(target_ip)))
                     {
-                        snprintf(join_error, sizeof(join_error), "Please enter a valid IP address!");
+                        snprintf(join_error, sizeof(join_error), "Room not found! Enter 4-digit code or Host IP.");
                     }
                     else
                     {
                         settings_apply(&settings);
-                        if (net_client_connect(join_ip))
+                        if (net_client_connect(target_ip))
                         {
+                            net_discovery_stop();
                             game_init(&game, MODE_CLIENT);
                             powerup_init(&powerups);
                             stats_init(&stats);
@@ -427,7 +434,7 @@ int main(void)
                         }
                         else
                         {
-                            snprintf(join_error, sizeof(join_error), "Failed to connect to %s! Check IP & Firewall.", join_ip);
+                            snprintf(join_error, sizeof(join_error), "Failed to connect to %s! Check Host.", target_ip);
                         }
                     }
                 }
@@ -939,51 +946,68 @@ int main(void)
             break;
 
         case SCREEN_HOST_WAIT:
-            render_host_wait_screen(net_get_local_ip());
+            render_host_wait_screen(net_get_room_code(), net_get_local_ip());
             ui_back_button_draw();
             break;
 
         case SCREEN_JOIN_INPUT:
             ui_background();
             ui_title("JOIN LAN GAME", 0.3f);
-            ui_subtitle("Enter the host's IP address to connect");
+            ui_subtitle("Enter the 4-digit Room Code to connect");
             {
-                Rectangle panel = {FIELD_W / 2 - 240, 200, 480, 280};
+                Rectangle panel = {FIELD_W / 2 - 240, 180, 480, 310};
                 ui_panel(panel);
-                DrawText("ENTER HOST IP ADDRESS:", FIELD_W / 2 - 200, 230, 18, UI_TEXT_DIM);
 
-                Rectangle box = {FIELD_W / 2 - 200, 260, 400, 50};
+                char d_code[16] = "", d_ip[64] = "";
+                bool has_room = net_discovery_poll(d_code, d_ip);
+
+                DrawText("ROOM CODE / HOST IP:", FIELD_W / 2 - 200, 210, 18, UI_TEXT_DIM);
+
+                Rectangle box = {FIELD_W / 2 - 200, 240, 400, 56};
                 DrawRectangleRec(box, (Color){15, 25, 40, 255});
-                DrawRectangleLinesEx(box, 1.5f, UI_ACCENT);
+                DrawRectangleLinesEx(box, 2.0f, UI_ACCENT);
 
                 if (ip_len == 0)
                 {
-                    DrawText("e.g. 192.168.1.50", (int)box.x + 15, (int)box.y + 12, 24, DARKGRAY);
+                    if (has_room)
+                    {
+                        DrawText(TextFormat("Found: %s (Press ENTER)", d_code), (int)box.x + 15, (int)box.y + 14, 24, UI_SUCCESS);
+                    }
+                    else
+                    {
+                        DrawText("Enter 4-digit code (e.g. 7429)", (int)box.x + 15, (int)box.y + 16, 22, DARKGRAY);
+                    }
                 }
                 else
                 {
-                    DrawText(join_ip, (int)box.x + 15, (int)box.y + 12, 26, UI_SUCCESS);
+                    DrawText(join_ip, (int)box.x + 15, (int)box.y + 12, 30, UI_ACCENT_HOT);
                 }
 
                 /* Blinking cursor */
                 if ((int)(GetTime() * 2.5f) % 2 == 0)
                 {
-                    int cw = MeasureText(join_ip, 26);
-                    DrawRectangle((int)box.x + 18 + cw, (int)box.y + 10, 3, 30, UI_ACCENT_HOT);
+                    int cw = MeasureText(join_ip, 30);
+                    DrawRectangle((int)box.x + 18 + cw, (int)box.y + 12, 3, 32, UI_ACCENT_HOT);
                 }
 
                 if (join_error[0] != '\0')
                 {
-                    DrawText(join_error, FIELD_W / 2 - 200, 325, 15, (Color){255, 90, 90, 255});
+                    DrawText(join_error, FIELD_W / 2 - 200, 310, 15, (Color){255, 90, 90, 255});
+                }
+                else if (has_room)
+                {
+                    DrawText(TextFormat("Room [%s] detected on local Wi-Fi!", d_code),
+                             FIELD_W / 2 - 200, 310, 15, UI_SUCCESS);
                 }
                 else
                 {
-                    DrawText("Port: 50505 (Ensure both laptops are on same Wi-Fi)",
-                             FIELD_W / 2 - 200, 325, 14, UI_TEXT_DARK);
+                    DrawText("Searching for rooms on local Wi-Fi...", FIELD_W / 2 - 200, 310, 14, UI_TEXT_DIM);
                 }
 
+                DrawText("Type Code -> Press ENTER to join",
+                         FIELD_W / 2 - 200, 350, 16, RAYWHITE);
                 DrawText("ENTER = Connect   CTRL+V = Paste   BACKSPACE = Delete",
-                         FIELD_W / 2 - 200, 380, 13, UI_TEXT_DIM);
+                         FIELD_W / 2 - 200, 400, 13, UI_TEXT_DARK);
             }
             ui_hint("Press ESC to return to menu");
             ui_back_button_draw();

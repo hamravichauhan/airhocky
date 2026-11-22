@@ -134,23 +134,26 @@ To compile a native standalone Windows `airhockey.exe`:
 
 ## 🌐 Running a Cross-Platform LAN Match (e.g. Fedora $\longleftrightarrow$ Windows)
 
-You can run an authoritative multiplayer match between two laptops on the same local network:
+You can run an authoritative multiplayer match between two laptops on the same local network using the **4-digit Room Code system**:
 
 1. **Connect Both Machines to the Same Network:**
-   * *Pro-Tip:* Connect both machines to your phone's **Mobile Hotspot** to prevent campus/enterprise Wi-Fi firewalls from blocking port `50505`.
+   * Connect both machines to the same Wi-Fi network or your mobile hotspot.
 
 2. **Start the Host (e.g., on Fedora Linux):**
-   * Check your local IPv4 address by typing `ip a` or `hostname -I` in the terminal (e.g., `192.168.43.15`).
-   * Launch `./airhockey`, navigate to **`Host LAN Game`**, and press `ENTER`.
-   * The host will display: *"HOSTING... WAITING FOR CLIENT ON PORT 50505"*.
+   * Launch `./airhockey`, select **`Host LAN Game`**, and press `ENTER`.
+   * The host will display a big glowing **4-digit Room Code** (e.g., `[ 7429 ]`), along with the local IP address.
+   * Background UDP beacons automatically broadcast this code across the local subnet.
 
 3. **Connect the Client (e.g., on Windows or macOS):**
-   * Launch the game, navigate to **`Join LAN Game`**, and press `ENTER`.
-   * Type the Host's IP address (`192.168.43.15`) and press `ENTER`.
+   * Launch the game, select **`Join LAN Game`**, and press `ENTER`.
+   * **Instant Auto-Discovery:** The screen will automatically display `Room [7429] detected on local Wi-Fi!` — simply press `ENTER` to connect!
+   * **Manual Code Entry:** If not auto-detected, simply type the 4-digit code (`7429`) and press `ENTER`.
+   * *(Direct IP fallback is also supported: you can type the Host's IP address directly if desired).*
 
 4. **Synchronized Play:**
-   * Both screens will instantly lock into a synchronized **3-second countdown** (*3... 2... 1... GO!*).
-   * Player 1 controls the bottom paddle on the Host; Player 2 controls the top paddle on the Client with zero desynchronization.
+   * Both screens instantly lock into a synchronized **3-second countdown** (*3... 2... 1... GO!*).
+   * **Laptop 1 (Host):** Controls Player 1 (Blue paddle at the bottom).
+   * **Laptop 2 (Client):** Controls Player 2 (Red paddle at the top) with zero desynchronization.
 
 ---
 

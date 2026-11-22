@@ -184,28 +184,35 @@ void render_waiting_screen(const char *msg)
     DrawCircle(30, 358, r, GREEN);
 }
 
-void render_host_wait_screen(const char *ip)
+void render_host_wait_screen(const char *room_code, const char *ip)
 {
     ui_background();
     ui_title("HOST LAN GAME", 0.3f);
-    ui_subtitle("Share this IP with the other player on your Wi-Fi");
+    ui_subtitle("Share this Room Code with your friend to join");
 
-    Rectangle panel = {FIELD_W / 2 - 240, 200, 480, 280};
+    Rectangle panel = {FIELD_W / 2 - 240, 180, 480, 320};
     ui_panel(panel);
 
-    DrawText("YOUR HOST IP ADDRESS:", FIELD_W / 2 - 200, 230, 18, UI_TEXT_DIM);
-    DrawText(ip, FIELD_W / 2 - 200, 258, 36, UI_SUCCESS);
+    DrawText("ROOM JOIN CODE", FIELD_W / 2 - 90, 210, 18, UI_TEXT_DIM);
 
-    DrawText("PORT:", FIELD_W / 2 - 200, 315, 18, UI_TEXT_DIM);
-    DrawText("50505 (TCP)", FIELD_W / 2 - 200, 338, 22, RAYWHITE);
+    /* Big glowing Room Code box */
+    Rectangle code_box = {FIELD_W / 2 - 160, 240, 320, 70};
+    DrawRectangleRec(code_box, (Color){15, 30, 50, 255});
+    DrawRectangleLinesEx(code_box, 2.0f, UI_ACCENT_HOT);
+
+    int cw = MeasureText(room_code, 52);
+    DrawText(room_code, FIELD_W / 2 - cw / 2, 250, 52, UI_ACCENT_HOT);
 
     float t = GetTime();
     int r = 7 + (int)(3 * (0.5f + 0.5f * sinf(t * 5.0f)));
-    DrawCircle(FIELD_W / 2 - 190, 412, r, UI_ACCENT_HOT);
-    DrawText("Waiting for client to connect...", FIELD_W / 2 - 170, 402, 20, UI_TEXT);
+    DrawCircle(FIELD_W / 2 - 180, 345, r, UI_SUCCESS);
+    DrawText("Waiting for player to enter code...", FIELD_W / 2 - 160, 335, 18, RAYWHITE);
 
-    DrawText("Ensure both laptops are on same Wi-Fi / Hotspot",
-             FIELD_W / 2 - 200, 442, 14, UI_TEXT_DARK);
+    DrawText("Host IP (Direct Fallback):", FIELD_W / 2 - 160, 385, 14, UI_TEXT_DIM);
+    DrawText(TextFormat("%s : 50505", ip), FIELD_W / 2 - 160, 405, 18, UI_SUCCESS);
+
+    DrawText("Both devices must be on same Wi-Fi / Hotspot",
+             FIELD_W / 2 - 160, 455, 13, UI_TEXT_DARK);
 
     ui_hint("Press ESC to cancel hosting and return to menu");
 }

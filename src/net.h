@@ -4,6 +4,7 @@
 #include "protocol.h"
 #include "game.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 /* Lifecycle */
 bool net_host_start(void);
@@ -12,6 +13,14 @@ void net_close(void);
 
 /* Local IP discovery */
 const char *net_get_local_ip(void);
+
+/* Room Code & Discovery */
+const char *net_get_room_code(void);
+void net_beacon_tick(void);
+void net_discovery_start(void);
+void net_discovery_stop(void);
+bool net_discovery_poll(char *out_code, char *out_ip);
+bool net_resolve_code_or_ip(const char *input, char *out_ip, size_t maxlen);
 
 /* State */
 bool net_is_connected(void);

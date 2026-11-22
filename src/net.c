@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -23,11 +24,14 @@ typedef SOCKET socket_t;
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/select.h>
+#include <sys/time.h>
 #include <ifaddrs.h>
 typedef int socket_t;
 #define INVALID_SOCK (-1)
 #define CLOSESOCK close
 #endif
+
+#define UDP_BEACON_PORT 50506
 
 /* ---------------- winsock & error helpers ---------------- */
 
@@ -65,6 +69,13 @@ static bool connected = false;
 /* Packet streaming buffer */
 static uint8_t s_rx_buf[sizeof(Packet)];
 static size_t s_rx_len = 0;
+
+/* Room Code & UDP Beacon */
+static char s_room_code[16] = "7429";
+static socket_t udp_bcast_fd = INVALID_SOCK;
+static socket_t udp_listen_fd = INVALID_SOCK;
+static char s_discovered_code[16] = "";
+static char s_discovered_ip[64] = "";
 
 /* set socket non-blocking */
 static void set_nonblocking(socket_t fd)
@@ -125,6 +136,181 @@ const char *net_get_local_ip(void)
     }
 #endif
     return ip_buf;
+}
+
+/* ---------------- Room Code & Beacon ---------------- */
+
+static double get_real_time(void)
+{
+    double r_time = GetTime();
+    if (r_time > 0.0)
+        return r_time;
+#ifdef _WIN32
+    return (double)GetTickCount() * 0.001;
+#else
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
+#endif
+}
+
+const char *net_get_room_code(void)
+{
+    return s_room_code;
+}
+
+void net_beacon_tick(void)
+{
+    if (udp_bcast_fd == INVALID_SOCK)
+        return;
+
+    static double last_time = 0.0;
+    double now = get_real_time();
+    if (last_time != 0.0 && (now - last_time) < 0.35)
+        return;
+    last_time = now;
+
+    char msg[128];
+    snprintf(msg, sizeof(msg), "AIRHOCKEY:%s:%s", s_room_code, net_get_local_ip());
+
+    struct sockaddr_in baddr;
+    memset(&baddr, 0, sizeof(baddr));
+    baddr.sin_family = AF_INET;
+    baddr.sin_port = htons(UDP_BEACON_PORT);
+
+    /* Broadcast to local LAN / Wi-Fi */
+#ifdef _WIN32
+    baddr.sin_addr.s_addr = inet_addr("255.255.255.255");
+#else
+    baddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+#endif
+    sendto(udp_bcast_fd, msg, (int)strlen(msg), 0, (struct sockaddr *)&baddr, sizeof(baddr));
+
+    /* Also send to localhost for same-machine testing */
+    baddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    sendto(udp_bcast_fd, msg, (int)strlen(msg), 0, (struct sockaddr *)&baddr, sizeof(baddr));
+}
+
+void net_discovery_start(void)
+{
+    init_winsock();
+    net_discovery_stop();
+
+    udp_listen_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (udp_listen_fd == INVALID_SOCK)
+        return;
+
+    int reuse = 1;
+    setsockopt(udp_listen_fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse, sizeof(reuse));
+#ifdef SO_REUSEPORT
+    setsockopt(udp_listen_fd, SOL_SOCKET, SO_REUSEPORT, (const char *)&reuse, sizeof(reuse));
+#endif
+
+    struct sockaddr_in laddr;
+    memset(&laddr, 0, sizeof(laddr));
+    laddr.sin_family = AF_INET;
+    laddr.sin_port = htons(UDP_BEACON_PORT);
+    laddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if (bind(udp_listen_fd, (struct sockaddr *)&laddr, sizeof(laddr)) < 0)
+    {
+        CLOSESOCK(udp_listen_fd);
+        udp_listen_fd = INVALID_SOCK;
+        return;
+    }
+
+    set_nonblocking(udp_listen_fd);
+    s_discovered_code[0] = '\0';
+    s_discovered_ip[0] = '\0';
+}
+
+void net_discovery_stop(void)
+{
+    if (udp_listen_fd != INVALID_SOCK)
+    {
+        CLOSESOCK(udp_listen_fd);
+        udp_listen_fd = INVALID_SOCK;
+    }
+}
+
+bool net_discovery_poll(char *out_code, char *out_ip)
+{
+    if (udp_listen_fd == INVALID_SOCK)
+        return (s_discovered_ip[0] != '\0');
+
+    char buf[128];
+    struct sockaddr_in from;
+    socklen_t flen = sizeof(from);
+#ifdef _WIN32
+    int n = recvfrom(udp_listen_fd, buf, sizeof(buf) - 1, 0, (struct sockaddr *)&from, &flen);
+#else
+    ssize_t n = recvfrom(udp_listen_fd, buf, sizeof(buf) - 1, 0, (struct sockaddr *)&from, &flen);
+#endif
+    if (n > 0)
+    {
+        buf[n] = '\0';
+        if (strncmp(buf, "AIRHOCKEY:", 10) == 0)
+        {
+            char *code = buf + 10;
+            char *colon = strchr(code, ':');
+            if (colon)
+            {
+                *colon = '\0';
+                char *ip = colon + 1;
+                strncpy(s_discovered_code, code, sizeof(s_discovered_code) - 1);
+                strncpy(s_discovered_ip, ip, sizeof(s_discovered_ip) - 1);
+
+                if (out_code)
+                    strncpy(out_code, s_discovered_code, 15);
+                if (out_ip)
+                    strncpy(out_ip, s_discovered_ip, 63);
+                return true;
+            }
+        }
+    }
+
+    if (s_discovered_ip[0] != '\0')
+    {
+        if (out_code)
+            strncpy(out_code, s_discovered_code, 15);
+        if (out_ip)
+            strncpy(out_ip, s_discovered_ip, 63);
+        return true;
+    }
+
+    return false;
+}
+
+bool net_resolve_code_or_ip(const char *input, char *out_ip, size_t maxlen)
+{
+    if (!input || strlen(input) == 0)
+    {
+        if (s_discovered_ip[0] != '\0')
+        {
+            strncpy(out_ip, s_discovered_ip, maxlen - 1);
+            out_ip[maxlen - 1] = '\0';
+            return true;
+        }
+        return false;
+    }
+
+    /* Direct IP entered (e.g. 192.168.1.50) */
+    if (strchr(input, '.') != NULL)
+    {
+        strncpy(out_ip, input, maxlen - 1);
+        out_ip[maxlen - 1] = '\0';
+        return true;
+    }
+
+    /* Matches discovered room code or single active room */
+    if (s_discovered_ip[0] != '\0')
+    {
+        strncpy(out_ip, s_discovered_ip, maxlen - 1);
+        out_ip[maxlen - 1] = '\0';
+        return true;
+    }
+
+    return false;
 }
 
 /* send entire buffer */
@@ -194,6 +380,20 @@ bool net_host_start(void)
     init_winsock();
     net_close();
 
+    /* Generate a random 4-digit Room Code */
+    srand((unsigned int)time(NULL) ^ (unsigned int)GetTime());
+    snprintf(s_room_code, sizeof(s_room_code), "%04d", 1000 + (rand() % 9000));
+
+    /* Setup UDP Broadcast beacon */
+    udp_bcast_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (udp_bcast_fd != INVALID_SOCK)
+    {
+        int bcast = 1;
+        setsockopt(udp_bcast_fd, SOL_SOCKET, SO_BROADCAST, (const char *)&bcast, sizeof(bcast));
+        set_nonblocking(udp_bcast_fd);
+    }
+
+    /* Setup TCP Listener */
     srv_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (srv_fd == INVALID_SOCK)
     {
@@ -233,7 +433,7 @@ bool net_host_start(void)
     connected = false;
     s_rx_len = 0;
 
-    TraceLog(LOG_INFO, "Hosting on IP %s, port %d — waiting for client", net_get_local_ip(), NET_PORT);
+    TraceLog(LOG_INFO, "Hosting Room [%s] on IP %s:%d", s_room_code, net_get_local_ip(), NET_PORT);
     return true;
 }
 
@@ -336,6 +536,13 @@ void net_close(void)
         CLOSESOCK(srv_fd);
         srv_fd = INVALID_SOCK;
     }
+    if (udp_bcast_fd != INVALID_SOCK)
+    {
+        CLOSESOCK(udp_bcast_fd);
+        udp_bcast_fd = INVALID_SOCK;
+    }
+    net_discovery_stop();
+
     connected = false;
     is_host = false;
     s_rx_len = 0;
@@ -379,6 +586,13 @@ bool net_poll_input(float *tx, float *ty)
             cli_fd = fd;
             connected = true;
             s_rx_len = 0;
+
+            /* Stop beaconing once client connects */
+            if (udp_bcast_fd != INVALID_SOCK)
+            {
+                CLOSESOCK(udp_bcast_fd);
+                udp_bcast_fd = INVALID_SOCK;
+            }
 
             char ipbuf[64];
             inet_ntop(AF_INET, &caddr.sin_addr, ipbuf, sizeof(ipbuf));

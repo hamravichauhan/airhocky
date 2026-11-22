@@ -400,8 +400,8 @@ def build_report():
          "Interactive settings screen allowing players to configure winning goal limits, puck/paddle velocity multipliers, power-up spawn intervals, visual themes, and sound volume, serialized to settings.dat."),
         ("08_tournament_mode.png", "Figure 5.8: Tournament Format Selection (Best-of-3 / Best-of-5)",
          "Competitive tournament bracket selector enabling multi-match series play with persistent series score tracking and automated championship verification."),
-        ("09_lan_join.png", "Figure 5.9: LAN Multiplayer Host / Join Connection Interface",
-         "Network connection interface allowing the client to input the host's LAN IPv4 address (e.g., 192.168.1.45) to initiate non-blocking TCP socket communication on port 50505.")
+        ("09_lan_join.png", "Figure 5.9: LAN Multiplayer 4-Digit Room Code Join Interface",
+         "The modernized LAN join screen featuring automatic local UDP room beacon discovery and 4-digit Room Code pairing. Eliminates manual IP typing while preserving low-level host-authoritative TCP socket synchronization.")
     ]
 
     base_dir = "/Users/ravichauhan/Desktop/COLLEGE/C/PROJ/screenshots"

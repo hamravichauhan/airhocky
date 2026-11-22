@@ -185,17 +185,23 @@ int main(void)
     ui_back_button_draw();
     snap("screenshots/08_tournament_mode.png");
 
-    // 9. LAN MULTIPLAYER JOIN SCREEN
+    // 9. LAN MULTIPLAYER JOIN SCREEN (ROOM CODE)
     BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     ui_background();
-    ui_title("JOIN GAME", 0.3f);
-    ui_subtitle("Enter the host's IP address");
-    Rectangle join_panel = {FIELD_W / 2 - 220, 220, 440, 200};
-    ui_panel(join_panel);
-    DrawText("Host IP:", FIELD_W / 2 - 180, 260, 22, UI_TEXT);
-    DrawText("192.168.1.45", FIELD_W / 2 - 180, 300, 26, UI_SUCCESS);
-    ui_hint("Type to enter   ENTER = connect   ESC = back");
+    ui_title("JOIN LAN GAME", 0.3f);
+    ui_subtitle("Enter the 4-digit Room Code to connect");
+    Rectangle panel9 = {FIELD_W / 2 - 240, 180, 480, 310};
+    ui_panel(panel9);
+    DrawText("ROOM CODE / HOST IP:", FIELD_W / 2 - 200, 210, 18, UI_TEXT_DIM);
+    Rectangle box9 = {FIELD_W / 2 - 200, 240, 400, 56};
+    DrawRectangleRec(box9, (Color){15, 25, 40, 255});
+    DrawRectangleLinesEx(box9, 2.0f, UI_ACCENT);
+    DrawText("7429", (int)box9.x + 15, (int)box9.y + 12, 30, UI_ACCENT_HOT);
+    DrawText("Room [7429] detected on local Wi-Fi!", FIELD_W / 2 - 200, 310, 15, UI_SUCCESS);
+    DrawText("Type Code -> Press ENTER to join", FIELD_W / 2 - 200, 350, 16, RAYWHITE);
+    DrawText("ENTER = Connect   CTRL+V = Paste   BACKSPACE = Delete", FIELD_W / 2 - 200, 400, 13, UI_TEXT_DARK);
+    ui_hint("Press ESC to return to menu");
     ui_back_button_draw();
     snap("screenshots/09_lan_join.png");
 
