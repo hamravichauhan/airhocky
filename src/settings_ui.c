@@ -117,22 +117,22 @@ static void adjust(GameSettings *s, int dir)
 
 bool settings_ui_update(GameSettings *s)
 {
-    if (IsKeyPressed(KEY_DOWN))
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S))
     {
         s_sel++;
         clamp_sel();
     }
-    if (IsKeyPressed(KEY_UP))
+    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W))
     {
         s_sel--;
         clamp_sel();
     }
-    if (IsKeyPressed(KEY_LEFT))
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A))
         adjust(s, -1);
-    if (IsKeyPressed(KEY_RIGHT))
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D))
         adjust(s, +1);
 
-    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE))
     {
         settings_save(s);
         settings_apply(s);

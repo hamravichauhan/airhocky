@@ -36,13 +36,13 @@ static void draw_hud(const char *theme_name, int pause_mode)
     ui_button(hud_theme_btn, theme_name, false);
     ui_button(hud_pause_btn, pause_mode > 0 ? "RESUME (P)" : "PAUSE (P)", false);
 
-    const char *hints = "ESC: Pause   TAB: Heatmap   CTRL: Aim";
+    const char *hints = "ESC / P: Pause   TAB: Heatmap   CTRL / C: Aim";
     int htw = MeasureText(hints, 10);
     DrawText(hints, FIELD_W / 2 - htw / 2, 78, 10, UI_TEXT_DIM);
 
     /* Bottom strip below Player 1's goal (y = 905 .. 920) */
     DrawLine(0, 905, FIELD_W, 905, (Color){30, 45, 65, 180});
-    const char *ctrl_hint = "WASD / Arrows: Move Paddle   |   SHIFT: Spin   |   V: Slow-Mo Replay";
+    const char *ctrl_hint = "WASD / Arrows: Move Paddle   |   SHIFT: Spin   |   V: Slow-Mo Replay   |   T: Theme";
     int ctw = MeasureText(ctrl_hint, 10);
     DrawText(ctrl_hint, FIELD_W / 2 - ctw / 2, 908, 10, UI_TEXT_DARK);
 
