@@ -1,13 +1,15 @@
-# Academic Project Report
+# [ COLLEGE / UNIVERSITY NAME HERE ]
+### Approved by AICTE, New Delhi & Affiliated to [University Name]
+## DEPARTMENT OF COMPUTER APPLICATIONS
+**Academic Year 2026 – 2027**
 
 ---
 
 # AIR HOCKEY: REAL-TIME 2D LAN MULTIPLAYER & ADAPTIVE SIMULATION ENGINE
+*A Major Project Report Submitted in Partial Fulfillment of the Requirements for the Award of the Degree of*  
+### **MASTER OF COMPUTER APPLICATIONS (MCA)**
 
-**Department of Computer Applications**  
-**Master of Computer Applications (MCA)**  
-**Course Code / Subject:** Mini Project / Advanced Systems & Software Engineering  
-**Academic Year:** 2026–2027  
+`Pure C11` • `OpenGL / Raylib` • `Raw POSIX & Winsock2 Sockets` • `Procedural DSP Audio` • `Sub-Stepped Physics`
 
 ---
 
@@ -15,15 +17,19 @@
 
 | Roll No. | Student Name | Assigned Engineering Role | Assigned Modules |
 | :--- | :--- | :--- | :--- |
-| **MCA-2026-01** | Team Member 1 (Lead) | **Network & Systems Architect** | `main.c`, `net.c`, `protocol.h`, `features.h` |
+| **MCA-2026-01** | **Ravi Chauhan (Lead)** | **Network & Systems Architect** | `main.c`, `net.c`, `protocol.h`, `features.h` |
 | **MCA-2026-02** | Team Member 2 | **Physics & Simulation Engineer** | `game.c`, `trajectory.c`, `input.c` |
 | **MCA-2026-03** | Team Member 3 | **Graphics & Audio DSP Engineer** | `render.c`, `audio.c`, `dynaudio.c`, `particles.c` |
 | **MCA-2026-04** | Team Member 4 | **Solo Mode & Data Systems Engineer**| `solomode.c`, `replay.c`, `stats.c`, `heatmap.c` |
 
-**Under the Guidance of:**  
-*[Faculty Guide / Department Professor Name]*  
-**Department of Computer Applications**  
+<br>
+
+| Supervision & Guidance | Department Approval & Endorsement |
+| :--- | :--- |
+| **Under the Guidance of:**<br>**[Faculty Guide Name]**<br>Assistant Professor<br>Department of Computer Applications | **Approved & Endorsed by:**<br>**[Head of Department / HOD]**<br>Professor & Head<br>Department of Computer Applications |
+
 **Date of Submission:** November 2026  
+**Department of Computer Applications • [City, State, India]**  
 
 ---
 

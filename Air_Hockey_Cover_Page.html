@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Hockey Project Report - Cover Page</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #e2e8f0;
+            color: #1e293b;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 16mm 18mm;
+            background: #ffffff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .outer-border {
+            border: 3px double #1e3a8a;
+            padding: 12mm 14mm;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+        .outer-border::before {
+            content: "";
+            position: absolute;
+            top: 4px; left: 4px; right: 4px; bottom: 4px;
+            border: 1px solid #cbd5e1;
+            pointer-events: none;
+        }
+        
+        /* Header */
+        .institution-header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .college-name {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1e3a8a;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 4px;
+        }
+        .college-sub {
+            font-size: 11px;
+            color: #64748b;
+            font-style: italic;
+            margin-bottom: 6px;
+        }
+        .dept-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .academic-year {
+            font-size: 11px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-top: 3px;
+        }
+
+        .header-divider {
+            height: 3px;
+            background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 50%, #1e3a8a 100%);
+            margin: 10px 0 16px 0;
+            border-radius: 2px;
+        }
+
+        /* Title Card */
+        .title-card {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-left: 6px solid #1e3a8a;
+            border-radius: 8px;
+            padding: 18px 20px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .project-tag {
+            font-size: 11px;
+            font-weight: 700;
+            color: #2563eb;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .main-title {
+            font-size: 32px;
+            font-weight: 900;
+            color: #0f172a;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .subtitle {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e3a8a;
+            margin-bottom: 12px;
+        }
+        .tech-badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+        .badge {
+            font-size: 10px;
+            font-weight: 600;
+            color: #334155;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+
+        /* Degree Submission */
+        .submission-clause {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .clause-text {
+            font-size: 12px;
+            color: #475569;
+            font-style: italic;
+            margin-bottom: 4px;
+        }
+        .degree-name {
+            font-size: 15px;
+            font-weight: 800;
+            color: #1e3a8a;
+            letter-spacing: 0.5px;
+        }
+
+        /* Team Table */
+        .section-heading {
+            font-size: 11px;
+            font-weight: 700;
+            color: #1e3a8a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            font-size: 11px;
+        }
+        th {
+            background: #1e3a8a;
+            color: #ffffff;
+            font-weight: 700;
+            text-align: left;
+            padding: 7px 10px;
+            font-size: 10.5px;
+        }
+        td {
+            padding: 6px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+        }
+        tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        .roll-no {
+            font-weight: 700;
+            color: #1e3a8a;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        .lead-name {
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .code-unit {
+            font-family: 'Consolas', monospace;
+            font-size: 10px;
+            background: #f1f5f9;
+            padding: 1px 4px;
+            border-radius: 3px;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Guidance & Approval Grid */
+        .approval-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .approval-box {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+        .approval-role {
+            font-size: 10px;
+            font-style: italic;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        .approval-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+        .approval-desc {
+            font-size: 10px;
+            color: #475569;
+        }
+        .sig-space {
+            height: 28px;
+            margin-top: 10px;
+            border-bottom: 1px dashed #94a3b8;
+            position: relative;
+        }
+        .sig-label {
+            position: absolute;
+            bottom: 2px;
+            right: 0;
+            font-size: 9px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Print Button (Hidden on Print) */
+        .print-bar {
+            position: fixed;
+            bottom: 20px;
+            background: #0f172a;
+            color: #ffffff;
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 14px;
+            z-index: 1000;
+        }
+        .print-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .print-btn:hover {
+            background: #1d4ed8;
+        }
+
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+            }
+            .page {
+                box-shadow: none;
+                width: 100%;
+                min-height: 100%;
+                padding: 14mm;
+            }
+            .print-bar {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="print-bar">
+        <span>Academic Cover Page Ready</span>
+        <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+
+    <div class="page">
+        <div class="outer-border">
+            <!-- Institution Header -->
+            <div class="institution-header">
+                <div class="college-name">[ COLLEGE / UNIVERSITY NAME HERE ]</div>
+                <div class="college-sub">Approved by AICTE, New Delhi &bull; Affiliated to [University Name]</div>
+                <div class="dept-title">Department of Computer Applications</div>
+                <div class="academic-year">Academic Year 2026 – 2027</div>
+            </div>
+
+            <div class="header-divider"></div>
+
+            <!-- Title Card -->
+            <div class="title-card">
+                <div class="project-tag">Major Project Report</div>
+                <div class="main-title">AIR HOCKEY</div>
+                <div class="subtitle">A Real-Time 2D LAN Multiplayer & Adaptive Simulation Engine</div>
+                <div class="tech-badges">
+                    <span class="badge">Pure C11</span>
+                    <span class="badge">OpenGL / Raylib</span>
+                    <span class="badge">Raw TCP Sockets</span>
+                    <span class="badge">Procedural DSP Audio</span>
+                    <span class="badge">Sub-Stepped Physics</span>
+                </div>
+            </div>
+
+            <!-- Degree Submission Clause -->
+            <div class="submission-clause">
+                <div class="clause-text">A project report submitted in partial fulfillment of the requirements for the award of the degree of</div>
+                <div class="degree-name">MASTER OF COMPUTER APPLICATIONS (MCA)</div>
+            </div>
+
+            <!-- Team Members Table -->
+            <div>
+                <div class="section-heading">Project Team & Contribution Matrix:</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 18%;">Roll No.</th>
+                            <th style="width: 28%;">Student Name</th>
+                            <th style="width: 27%;">Engineering Role</th>
+                            <th style="width: 27%;">Assigned Modules</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="roll-no">MCA-2026-01</td>
+                            <td class="lead-name">Ravi Chauhan (Lead)</td>
+                            <td>Network & Systems Architect</td>
+                            <td><span class="code-unit">main.c</span> <span class="code-unit">net.c</span> <span class="code-unit">protocol.h</span></td>
+                        </tr>
+                        <tr>
+                            <td class="roll-no">MCA-2026-02</td>
+                            <td>Team Member 2</td>
+                            <td>Physics & Simulation Engineer</td>
+                            <td><span class="code-unit">game.c</span> <span class="code-unit">trajectory.c</span> <span class="code-unit">input.c</span></td>
+                        </tr>
+                        <tr>
+                            <td class="roll-no">MCA-2026-03</td>
+                            <td>Team Member 3</td>
+                            <td>Graphics & Audio DSP Engineer</td>
+                            <td><span class="code-unit">render.c</span> <span class="code-unit">audio.c</span> <span class="code-unit">dynaudio.c</span></td>
+                        </tr>
+                        <tr>
+                            <td class="roll-no">MCA-2026-04</td>
+                            <td>Team Member 4</td>
+                            <td>Solo Mode & Data Systems Engineer</td>
+                            <td><span class="code-unit">solomode.c</span> <span class="code-unit">replay.c</span> <span class="code-unit">stats.c</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Supervision & Approval Grid -->
+            <div class="approval-grid">
+                <div class="approval-box">
+                    <div class="approval-role">Under the Guidance of:</div>
+                    <div class="approval-name">[Faculty Guide Name]</div>
+                    <div class="approval-desc">Assistant Professor, Dept. of Computer Applications</div>
+                    <div class="sig-space">
+                        <span class="sig-label">Signature of Faculty Guide</span>
+                    </div>
+                </div>
+                <div class="approval-box">
+                    <div class="approval-role">Approved & Endorsed by:</div>
+                    <div class="approval-name">[Head of Department / HOD]</div>
+                    <div class="approval-desc">Professor & Head, Dept. of Computer Applications</div>
+                    <div class="sig-space">
+                        <span class="sig-label">Signature of HOD</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                Department of Computer Applications &bull; [City, State, India] &bull; November 2026
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

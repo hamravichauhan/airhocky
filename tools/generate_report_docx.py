@@ -21,6 +21,21 @@ def set_cell_margins(cell, top=100, bottom=100, left=140, right=140):
         tcMar.append(node)
     tcPr.append(tcMar)
 
+def set_cell_border(cell, **kwargs):
+    tcPr = cell._tc.get_or_add_tcPr()
+    tcBorders = OxmlElement('w:tcBorders')
+    for b_name in ['top', 'left', 'bottom', 'right']:
+        if b_name in kwargs:
+            edge = OxmlElement(f'w:{b_name}')
+            for key, val in kwargs[b_name].items():
+                edge.set(qn(f'w:{key}'), str(val))
+            tcBorders.append(edge)
+        else:
+            edge = OxmlElement(f'w:{b_name}')
+            edge.set(qn('w:val'), 'none')
+            tcBorders.append(edge)
+    tcPr.append(tcBorders)
+
 def add_heading_styled(doc, text, level):
     h = doc.add_heading(text, level=level)
     h.paragraph_format.keep_with_next = True
@@ -110,64 +125,219 @@ def build_report():
     normal_style.paragraph_format.space_after = Pt(5)
 
     # ==================== COVER PAGE ====================
-    title_p = doc.add_paragraph()
-    title_p.paragraph_format.space_before = Pt(36)
-    title_p.paragraph_format.space_after = Pt(12)
-    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    trun = title_p.add_run("AIR HOCKEY: REAL-TIME 2D LAN MULTIPLAYER & ADAPTIVE SIMULATION ENGINE")
-    trun.font.size = Pt(21)
-    trun.font.bold = True
-    trun.font.color.rgb = RGBColor(24, 43, 73)
+    # 1. Institution Header
+    p_inst = doc.add_paragraph()
+    p_inst.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_inst.paragraph_format.space_before = Pt(8)
+    p_inst.paragraph_format.space_after = Pt(2)
+    r_inst = p_inst.add_run("[ COLLEGE / UNIVERSITY NAME HERE ]")
+    r_inst.font.name = "Calibri"
+    r_inst.font.size = Pt(16)
+    r_inst.font.bold = True
+    r_inst.font.color.rgb = RGBColor(30, 58, 138)
 
-    sub_p = doc.add_paragraph()
-    sub_p.paragraph_format.space_after = Pt(20)
-    sub_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    srun = sub_p.add_run("A Project Report Submitted in Partial Fulfillment of the Requirements for the Degree of\nMASTER OF COMPUTER APPLICATIONS (MCA)")
-    srun.font.size = Pt(12)
-    srun.font.bold = True
-    srun.font.color.rgb = RGBColor(70, 70, 70)
+    p_subinst = doc.add_paragraph()
+    p_subinst.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_subinst.paragraph_format.space_after = Pt(2)
+    r_sub = p_subinst.add_run("Approved by AICTE, New Delhi & Affiliated to [University Name]\nDEPARTMENT OF COMPUTER APPLICATIONS")
+    r_sub.font.name = "Calibri"
+    r_sub.font.size = Pt(10.5)
+    r_sub.font.bold = True
+    r_sub.font.color.rgb = RGBColor(71, 85, 105)
 
-    dept_p = doc.add_paragraph()
-    dept_p.paragraph_format.space_after = Pt(32)
-    dept_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    drun = dept_p.add_run("Department of Computer Applications\nAcademic Year 2026 – 2027")
-    drun.font.size = Pt(11)
-    drun.font.italic = True
-    drun.font.color.rgb = RGBColor(100, 100, 100)
+    p_session = doc.add_paragraph()
+    p_session.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_session.paragraph_format.space_after = Pt(10)
+    r_ses = p_session.add_run("ACADEMIC YEAR 2026 – 2027")
+    r_ses.font.name = "Calibri"
+    r_ses.font.size = Pt(9.5)
+    r_ses.font.bold = True
+    r_ses.font.color.rgb = RGBColor(148, 163, 184)
 
-    # Members Table
+    # Accent divider line
+    t_rule = doc.add_table(rows=1, cols=1)
+    t_rule.alignment = WD_TABLE_ALIGNMENT.CENTER
+    cell_rule = t_rule.rows[0].cells[0]
+    cell_rule.width = Inches(6.5)
+    set_cell_background(cell_rule, "1E3A8A")
+    set_cell_margins(cell_rule, top=20, bottom=20, left=0, right=0)
+    p_empty = cell_rule.paragraphs[0]
+    p_empty.paragraph_format.space_before = Pt(0)
+    p_empty.paragraph_format.space_after = Pt(0)
+    r_empty = p_empty.add_run()
+    r_empty.font.size = Pt(2)
+
+    # 2. Title Card Block
+    p_sp = doc.add_paragraph()
+    p_sp.paragraph_format.space_before = Pt(6)
+    p_sp.paragraph_format.space_after = Pt(0)
+
+    t_card = doc.add_table(rows=1, cols=1)
+    t_card.alignment = WD_TABLE_ALIGNMENT.CENTER
+    c_card = t_card.rows[0].cells[0]
+    c_card.width = Inches(6.5)
+    set_cell_background(c_card, "F8FAFC")
+    set_cell_margins(c_card, top=140, bottom=140, left=180, right=180)
+    set_cell_border(c_card, 
+                    top={'sz': 8, 'val': 'single', 'color': 'CBD5E1'},
+                    bottom={'sz': 8, 'val': 'single', 'color': 'CBD5E1'},
+                    left={'sz': 18, 'val': 'single', 'color': '1E3A8A'},
+                    right={'sz': 8, 'val': 'single', 'color': 'CBD5E1'})
+
+    p_type = c_card.paragraphs[0]
+    p_type.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_type.paragraph_format.space_before = Pt(0)
+    p_type.paragraph_format.space_after = Pt(3)
+    r_type = p_type.add_run("ACADEMIC PROJECT REPORT")
+    r_type.font.name = "Calibri"
+    r_type.font.size = Pt(10)
+    r_type.font.bold = True
+    r_type.font.color.rgb = RGBColor(37, 99, 235)
+
+    p_t = c_card.add_paragraph()
+    p_t.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_t.paragraph_format.space_before = Pt(2)
+    p_t.paragraph_format.space_after = Pt(3)
+    r_t = p_t.add_run("AIR HOCKEY")
+    r_t.font.name = "Calibri"
+    r_t.font.size = Pt(24)
+    r_t.font.bold = True
+    r_t.font.color.rgb = RGBColor(15, 23, 42)
+
+    p_sub = c_card.add_paragraph()
+    p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_sub.paragraph_format.space_before = Pt(0)
+    p_sub.paragraph_format.space_after = Pt(6)
+    r_sub = p_sub.add_run("A Real-Time 2D LAN Multiplayer & Adaptive Simulation Engine")
+    r_sub.font.name = "Calibri"
+    r_sub.font.size = Pt(11.5)
+    r_sub.font.bold = True
+    r_sub.font.color.rgb = RGBColor(30, 58, 138)
+
+    p_tech = c_card.add_paragraph()
+    p_tech.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_tech.paragraph_format.space_before = Pt(0)
+    p_tech.paragraph_format.space_after = Pt(0)
+    r_tech = p_tech.add_run("Pure C11  •  OpenGL / Raylib  •  Raw TCP Sockets  •  Procedural DSP Audio")
+    r_tech.font.name = "Calibri"
+    r_tech.font.size = Pt(9.0)
+    r_tech.font.italic = True
+    r_tech.font.color.rgb = RGBColor(100, 116, 139)
+
+    # 3. Submission Statement
+    p_deg = doc.add_paragraph()
+    p_deg.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_deg.paragraph_format.space_before = Pt(10)
+    p_deg.paragraph_format.space_after = Pt(2)
+    r_deg1 = p_deg.add_run("Submitted in partial fulfillment of the requirements for the award of the degree of\n")
+    r_deg1.font.name = "Calibri"
+    r_deg1.font.size = Pt(10)
+    r_deg1.font.italic = True
+    r_deg1.font.color.rgb = RGBColor(51, 65, 85)
+
+    r_deg2 = p_deg.add_run("MASTER OF COMPUTER APPLICATIONS (MCA)")
+    r_deg2.font.name = "Calibri"
+    r_deg2.font.size = Pt(12.5)
+    r_deg2.font.bold = True
+    r_deg2.font.color.rgb = RGBColor(30, 58, 138)
+
+    # 4. Members Table
     m_p = doc.add_paragraph()
-    m_p.paragraph_format.space_before = Pt(16)
-    m_p.paragraph_format.space_after = Pt(8)
+    m_p.paragraph_format.space_before = Pt(8)
+    m_p.paragraph_format.space_after = Pt(4)
     m_run = m_p.add_run("PROJECT TEAM & CONTRIBUTION MATRIX:")
     m_run.font.bold = True
-    m_run.font.size = Pt(11)
-    m_run.font.color.rgb = RGBColor(24, 43, 73)
+    m_run.font.size = Pt(10)
+    m_run.font.color.rgb = RGBColor(30, 58, 138)
 
     table = doc.add_table(rows=5, cols=4)
-    col_widths = [Inches(1.2), Inches(1.6), Inches(1.8), Inches(1.9)]
-    headers = ["Roll No.", "Student Name", "Designation", "Assigned Modules"]
+    col_widths = [Inches(1.15), Inches(1.75), Inches(1.8), Inches(1.8)]
+    headers = ["Roll No.", "Student Name", "Engineering Role", "Assigned Modules"]
     for i, h in enumerate(headers):
         table.rows[0].cells[i].text = h
 
     data = [
-        ["MCA-2026-01", "Team Member 1 (Lead)", "Network & Systems Architect", "main.c, net.c, protocol.h, features.h"],
+        ["MCA-2026-01", "Ravi Chauhan (Lead)", "Network & Systems Architect", "main.c, net.c, protocol.h"],
         ["MCA-2026-02", "Team Member 2", "Physics & Simulation Engineer", "game.c, trajectory.c, input.c"],
-        ["MCA-2026-03", "Team Member 3", "Graphics & Audio DSP Engineer", "render.c, audio.c, dynaudio.c, particles.c"],
-        ["MCA-2026-04", "Team Member 4", "Solo Mode & Data Systems Engineer", "solomode.c, replay.c, stats.c, heatmap.c"]
+        ["MCA-2026-03", "Team Member 3", "Graphics & Audio DSP Engineer", "render.c, audio.c, dynaudio.c"],
+        ["MCA-2026-04", "Team Member 4", "Solo Mode & Data Systems Engineer", "solomode.c, replay.c, stats.c"]
     ]
     for r_idx, row_data in enumerate(data, start=1):
         for c_idx, val in enumerate(row_data):
             table.rows[r_idx].cells[c_idx].text = val
     format_table(table, col_widths, "1E3A8A")
 
-    guide_p = doc.add_paragraph()
-    guide_p.paragraph_format.space_before = Pt(36)
-    guide_p.paragraph_format.space_after = Pt(4)
-    guide_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    grun = guide_p.add_run("Under the Guidance of:\n[Faculty Guide / Department Professor Name]")
-    grun.font.bold = True
-    grun.font.size = Pt(11)
+    # 5. Dual Guidance & Endorsement Block
+    p_sp2 = doc.add_paragraph()
+    p_sp2.paragraph_format.space_before = Pt(10)
+    p_sp2.paragraph_format.space_after = Pt(0)
+
+    t_guide = doc.add_table(rows=1, cols=2)
+    t_guide.alignment = WD_TABLE_ALIGNMENT.CENTER
+    c_left = t_guide.rows[0].cells[0]
+    c_right = t_guide.rows[0].cells[1]
+    c_left.width = Inches(3.25)
+    c_right.width = Inches(3.25)
+    set_cell_background(c_left, "F1F5F9")
+    set_cell_background(c_right, "F1F5F9")
+    set_cell_margins(c_left, top=80, bottom=80, left=120, right=120)
+    set_cell_margins(c_right, top=80, bottom=80, left=120, right=120)
+    set_cell_border(c_left, 
+                    top={'sz': 6, 'val': 'single', 'color': 'CBD5E1'},
+                    bottom={'sz': 6, 'val': 'single', 'color': 'CBD5E1'},
+                    left={'sz': 12, 'val': 'single', 'color': '1E3A8A'},
+                    right={'sz': 4, 'val': 'single', 'color': 'CBD5E1'})
+    set_cell_border(c_right, 
+                    top={'sz': 6, 'val': 'single', 'color': 'CBD5E1'},
+                    bottom={'sz': 6, 'val': 'single', 'color': 'CBD5E1'},
+                    left={'sz': 4, 'val': 'single', 'color': 'CBD5E1'},
+                    right={'sz': 12, 'val': 'single', 'color': '1E3A8A'})
+
+    p_gl = c_left.paragraphs[0]
+    p_gl.paragraph_format.space_before = Pt(0)
+    p_gl.paragraph_format.space_after = Pt(2)
+    r1 = p_gl.add_run("Under the Guidance of:\n")
+    r1.font.name = "Calibri"
+    r1.font.size = Pt(9.0)
+    r1.font.italic = True
+    r1.font.color.rgb = RGBColor(100, 116, 139)
+    r2 = p_gl.add_run("[Faculty Guide Name]\n")
+    r2.font.name = "Calibri"
+    r2.font.size = Pt(10.5)
+    r2.font.bold = True
+    r2.font.color.rgb = RGBColor(15, 23, 42)
+    r3 = p_gl.add_run("Assistant Professor\nDept. of Computer Applications")
+    r3.font.name = "Calibri"
+    r3.font.size = Pt(8.0)
+    r3.font.color.rgb = RGBColor(71, 85, 105)
+
+    p_gr = c_right.paragraphs[0]
+    p_gr.paragraph_format.space_before = Pt(0)
+    p_gr.paragraph_format.space_after = Pt(2)
+    r4 = p_gr.add_run("Approved & Endorsed by:\n")
+    r4.font.name = "Calibri"
+    r4.font.size = Pt(9.0)
+    r4.font.italic = True
+    r4.font.color.rgb = RGBColor(100, 116, 139)
+    r5 = p_gr.add_run("[Head of Department / HOD]\n")
+    r5.font.name = "Calibri"
+    r5.font.size = Pt(10.5)
+    r5.font.bold = True
+    r5.font.color.rgb = RGBColor(15, 23, 42)
+    r6 = p_gr.add_run("Professor & Head\nDept. of Computer Applications")
+    r6.font.name = "Calibri"
+    r6.font.size = Pt(8.0)
+    r6.font.color.rgb = RGBColor(71, 85, 105)
+
+    p_foot = doc.add_paragraph()
+    p_foot.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_foot.paragraph_format.space_before = Pt(10)
+    p_foot.paragraph_format.space_after = Pt(0)
+    r_foot = p_foot.add_run("DEPARTMENT OF COMPUTER APPLICATIONS  •  NOVEMBER 2026\n[City, State, India]")
+    r_foot.font.name = "Calibri"
+    r_foot.font.size = Pt(8.5)
+    r_foot.font.bold = True
+    r_foot.font.color.rgb = RGBColor(148, 163, 184)
 
     doc.add_page_break()
 
