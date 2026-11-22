@@ -56,6 +56,7 @@ static AIDifficulty ai_from_settings(const GameSettings *s)
 int main(void)
 {
     InitWindow(FIELD_W, FIELD_H + 120, "Air Hockey");
+    SetExitKey(KEY_NULL);
     SetTargetFPS(60);
     srand((unsigned)GetTime() * 1000);
 
@@ -115,6 +116,7 @@ int main(void)
     int ta_best = 0;
     bool ta_active = false;
     bool game_paused = false;
+    int pause_confirm = 0; /* 0 = normal pause menu, 1 = confirm restart, 2 = confirm quit */
 
     char join_ip[64] = "";
     int ip_len = 0;
@@ -129,6 +131,7 @@ int main(void)
     do                          \
     {                           \
         game_paused = false;    \
+        pause_confirm = 0;      \
         screen = (next);        \
         ui_trans_begin(&trans); \
     } while (0)
@@ -439,8 +442,8 @@ int main(void)
         {
             bool is_ta = (screen == SCREEN_TIME_ATTACK);
 
-            Rectangle hud_pause_btn = {FIELD_W - 108, 16, 96, 30};
-            Rectangle hud_theme_btn = {12, 16, 96, 30};
+            Rectangle hud_pause_btn = {FIELD_W - 116, 15, 104, 32};
+            Rectangle hud_theme_btn = {12, 15, 104, 32};
             Vector2 mouse_pos = GetMousePosition();
             bool hud_pause_click = CheckCollisionPointRec(mouse_pos, hud_pause_btn) &&
                                    IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
@@ -464,69 +467,133 @@ int main(void)
             }
             else if (!replay_is_active(&replay))
             {
-                if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_ESCAPE) || hud_pause_click)
+                if (!game_paused)
                 {
-                    game_paused = !game_paused;
+                    if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_ESCAPE) || hud_pause_click)
+                    {
+                        game_paused = true;
+                        pause_confirm = 0;
+                    }
+                }
+                else
+                {
+                    if (hud_pause_click)
+                    {
+                        game_paused = false;
+                        pause_confirm = 0;
+                    }
                 }
             }
 
             if (game_paused)
             {
-                Rectangle modal_card = {FIELD_W / 2 - 170, 320, 340, 240};
-                Rectangle btn_resume  = {FIELD_W / 2 - 140, modal_card.y + 65,  280, 42};
-                Rectangle btn_restart = {FIELD_W / 2 - 140, modal_card.y + 118, 280, 42};
-                Rectangle btn_quit    = {FIELD_W / 2 - 140, modal_card.y + 171, 280, 42};
+                Rectangle modal_card = {FIELD_W / 2 - 170, 310, 340, 250};
 
-                bool click_resume = CheckCollisionPointRec(mouse_pos, btn_resume) &&
-                                    IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-                bool click_restart = CheckCollisionPointRec(mouse_pos, btn_restart) &&
+                if (pause_confirm == 1)
+                {
+                    /* Confirm Restart Match */
+                    Rectangle btn_yes    = {FIELD_W / 2 - 140, modal_card.y + 130, 280, 42};
+                    Rectangle btn_cancel = {FIELD_W / 2 - 140, modal_card.y + 185, 280, 42};
+
+                    bool click_yes = CheckCollisionPointRec(mouse_pos, btn_yes) &&
                                      IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-                bool click_quit = CheckCollisionPointRec(mouse_pos, btn_quit) &&
-                                  IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+                    bool click_cancel = CheckCollisionPointRec(mouse_pos, btn_cancel) &&
+                                        IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 
-                if (click_resume || IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER))
-                {
-                    game_paused = false;
-                    break;
-                }
-                if (click_restart || IsKeyPressed(KEY_R))
-                {
-                    game_paused = false;
-                    settings_apply(&settings);
-                    if (is_ta)
+                    if (click_yes || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_Y))
                     {
-                        game_init(&game, MODE_SOLO);
-                        ai_init(&ai, ai_from_settings(&settings));
-                        powerup_init(&powerups);
-                        stats_init(&stats);
-                        particles_clear();
-                        heatmap_init(&heat);
-                        replay_init(&replay);
-                        ta_time_left = 60.0f;
-                        ta_score = 0;
-                        ta_active = true;
-                    }
-                    else
-                    {
-                        int cur_mode = game.mode;
-                        game_init(&game, cur_mode);
-                        if (cur_mode == MODE_SOLO)
+                        game_paused = false;
+                        pause_confirm = 0;
+                        settings_apply(&settings);
+                        if (is_ta)
+                        {
+                            game_init(&game, MODE_SOLO);
                             ai_init(&ai, ai_from_settings(&settings));
-                        powerup_init(&powerups);
-                        stats_init(&stats);
-                        particles_clear();
-                        heatmap_init(&heat);
-                        replay_init(&replay);
+                            powerup_init(&powerups);
+                            stats_init(&stats);
+                            particles_clear();
+                            heatmap_init(&heat);
+                            replay_init(&replay);
+                            ta_time_left = 60.0f;
+                            ta_score = 0;
+                            ta_active = true;
+                        }
+                        else
+                        {
+                            int cur_mode = game.mode;
+                            game_init(&game, cur_mode);
+                            if (cur_mode == MODE_SOLO)
+                                ai_init(&ai, ai_from_settings(&settings));
+                            powerup_init(&powerups);
+                            stats_init(&stats);
+                            particles_clear();
+                            heatmap_init(&heat);
+                            replay_init(&replay);
+                        }
+                        break;
                     }
-                    break;
+                    if (click_cancel || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_N))
+                    {
+                        pause_confirm = 0;
+                        break;
+                    }
                 }
-                if (click_quit || IsKeyPressed(KEY_M) || IsKeyPressed(KEY_Q))
+                else if (pause_confirm == 2)
                 {
-                    game_paused = false;
-                    net_close();
-                    GO(SCREEN_MENU);
-                    menu_sel = 0;
-                    break;
+                    /* Confirm Quit to Main Menu */
+                    Rectangle btn_yes    = {FIELD_W / 2 - 140, modal_card.y + 130, 280, 42};
+                    Rectangle btn_cancel = {FIELD_W / 2 - 140, modal_card.y + 185, 280, 42};
+
+                    bool click_yes = CheckCollisionPointRec(mouse_pos, btn_yes) &&
+                                     IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+                    bool click_cancel = CheckCollisionPointRec(mouse_pos, btn_cancel) &&
+                                        IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+                    if (click_yes || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_Y))
+                    {
+                        game_paused = false;
+                        pause_confirm = 0;
+                        net_close();
+                        GO(SCREEN_MENU);
+                        menu_sel = 0;
+                        break;
+                    }
+                    if (click_cancel || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_N))
+                    {
+                        pause_confirm = 0;
+                        break;
+                    }
+                }
+                else
+                {
+                    /* Standard Pause Menu */
+                    Rectangle btn_resume  = {FIELD_W / 2 - 140, modal_card.y + 65,  280, 42};
+                    Rectangle btn_restart = {FIELD_W / 2 - 140, modal_card.y + 118, 280, 42};
+                    Rectangle btn_quit    = {FIELD_W / 2 - 140, modal_card.y + 171, 280, 42};
+
+                    bool click_resume = CheckCollisionPointRec(mouse_pos, btn_resume) &&
+                                        IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+                    bool click_restart = CheckCollisionPointRec(mouse_pos, btn_restart) &&
+                                         IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+                    bool click_quit = CheckCollisionPointRec(mouse_pos, btn_quit) &&
+                                      IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+                    if (click_resume || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_P) ||
+                        IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER))
+                    {
+                        game_paused = false;
+                        break;
+                    }
+                    if (click_restart || IsKeyPressed(KEY_R))
+                    {
+                        pause_confirm = 1;
+                        break;
+                    }
+                    if (click_quit || IsKeyPressed(KEY_M) || IsKeyPressed(KEY_Q))
+                    {
+                        pause_confirm = 2;
+                        break;
+                    }
                 }
 
                 break; /* Freeze physics and timers while game is paused */
@@ -1058,8 +1125,8 @@ int main(void)
             render_replay_banner(replay_is_active(&replay), 0);
 
             /* --- Top Scoreboard Controls (Inside y = 0 .. 100, never covering field or goal) --- */
-            Rectangle hud_pause_btn = {FIELD_W - 108, 16, 96, 30};
-            Rectangle hud_theme_btn = {12, 16, 96, 30};
+            Rectangle hud_pause_btn = {FIELD_W - 116, 15, 104, 32};
+            Rectangle hud_theme_btn = {12, 15, 104, 32};
             Vector2 m_pos = GetMousePosition();
             bool hud_pause_hover = CheckCollisionPointRec(m_pos, hud_pause_btn);
             bool hud_theme_hover = CheckCollisionPointRec(m_pos, hud_theme_btn);
@@ -1104,20 +1171,63 @@ int main(void)
             {
                 DrawRectangle(0, 0, FIELD_W, FIELD_H + 120, (Color){5, 10, 20, 215});
 
-                Rectangle modal_card = {FIELD_W / 2 - 170, 320, 340, 240};
+                Rectangle modal_card = {FIELD_W / 2 - 170, 310, 340, 250};
                 ui_panel(modal_card);
 
-                const char *ptitle = "MATCH PAUSED";
-                int ptw = MeasureText(ptitle, 26);
-                DrawText(ptitle, FIELD_W / 2 - ptw / 2, modal_card.y + 20, 26, UI_ACCENT_HOT);
+                if (pause_confirm == 1)
+                {
+                    const char *ptitle = "RESTART MATCH?";
+                    int ptw = MeasureText(ptitle, 24);
+                    DrawText(ptitle, FIELD_W / 2 - ptw / 2, modal_card.y + 18, 24, UI_ACCENT_HOT);
 
-                Rectangle btn_resume  = {FIELD_W / 2 - 140, modal_card.y + 65,  280, 42};
-                Rectangle btn_restart = {FIELD_W / 2 - 140, modal_card.y + 118, 280, 42};
-                Rectangle btn_quit    = {FIELD_W / 2 - 140, modal_card.y + 171, 280, 42};
+                    const char *sub1 = "Are you sure you want to restart?";
+                    int stw1 = MeasureText(sub1, 13);
+                    DrawText(sub1, FIELD_W / 2 - stw1 / 2, modal_card.y + 55, 13, UI_TEXT);
 
-                ui_button(btn_resume,  "Resume Match (ESC / P)", CheckCollisionPointRec(m_pos, btn_resume));
-                ui_button(btn_restart, "Restart Match (R)",      CheckCollisionPointRec(m_pos, btn_restart));
-                ui_button(btn_quit,    "Quit to Main Menu (M)",  CheckCollisionPointRec(m_pos, btn_quit));
+                    const char *sub2 = "Current score and rally will be reset.";
+                    int stw2 = MeasureText(sub2, 11);
+                    DrawText(sub2, FIELD_W / 2 - stw2 / 2, modal_card.y + 78, 11, UI_TEXT_DIM);
+
+                    Rectangle btn_yes    = {FIELD_W / 2 - 140, modal_card.y + 130, 280, 42};
+                    Rectangle btn_cancel = {FIELD_W / 2 - 140, modal_card.y + 185, 280, 42};
+
+                    ui_button(btn_yes,    "YES, RESTART (ENTER / Y)", CheckCollisionPointRec(m_pos, btn_yes));
+                    ui_button(btn_cancel, "CANCEL (ESC / N)",         CheckCollisionPointRec(m_pos, btn_cancel));
+                }
+                else if (pause_confirm == 2)
+                {
+                    const char *ptitle = "QUIT TO MENU?";
+                    int ptw = MeasureText(ptitle, 24);
+                    DrawText(ptitle, FIELD_W / 2 - ptw / 2, modal_card.y + 18, 24, UI_ACCENT_HOT);
+
+                    const char *sub1 = "Are you sure you want to quit?";
+                    int stw1 = MeasureText(sub1, 13);
+                    DrawText(sub1, FIELD_W / 2 - stw1 / 2, modal_card.y + 55, 13, UI_TEXT);
+
+                    const char *sub2 = "Unsaved match progress will be lost.";
+                    int stw2 = MeasureText(sub2, 11);
+                    DrawText(sub2, FIELD_W / 2 - stw2 / 2, modal_card.y + 78, 11, UI_TEXT_DIM);
+
+                    Rectangle btn_yes    = {FIELD_W / 2 - 140, modal_card.y + 130, 280, 42};
+                    Rectangle btn_cancel = {FIELD_W / 2 - 140, modal_card.y + 185, 280, 42};
+
+                    ui_button(btn_yes,    "YES, QUIT TO MENU (ENTER / Y)", CheckCollisionPointRec(m_pos, btn_yes));
+                    ui_button(btn_cancel, "CANCEL (ESC / N)",              CheckCollisionPointRec(m_pos, btn_cancel));
+                }
+                else
+                {
+                    const char *ptitle = "MATCH PAUSED";
+                    int ptw = MeasureText(ptitle, 24);
+                    DrawText(ptitle, FIELD_W / 2 - ptw / 2, modal_card.y + 18, 24, UI_ACCENT_HOT);
+
+                    Rectangle btn_resume  = {FIELD_W / 2 - 140, modal_card.y + 65,  280, 42};
+                    Rectangle btn_restart = {FIELD_W / 2 - 140, modal_card.y + 118, 280, 42};
+                    Rectangle btn_quit    = {FIELD_W / 2 - 140, modal_card.y + 171, 280, 42};
+
+                    ui_button(btn_resume,  "Resume Match (ESC / P)", CheckCollisionPointRec(m_pos, btn_resume));
+                    ui_button(btn_restart, "Restart Match (R)",      CheckCollisionPointRec(m_pos, btn_restart));
+                    ui_button(btn_quit,    "Quit to Main Menu (M)",  CheckCollisionPointRec(m_pos, btn_quit));
+                }
             }
             break;
         }

@@ -403,7 +403,9 @@ def build_report():
         ("09_lan_join.png", "Figure 5.9: LAN Multiplayer 4-Digit Room Code Join Interface",
          "The modernized LAN join screen featuring automatic local UDP room beacon discovery and 4-digit Room Code pairing. Eliminates manual IP typing while preserving low-level host-authoritative TCP socket synchronization."),
         ("10_pause_modal.png", "Figure 5.10: In-Game Pause & Navigation Modal Overlay",
-         "The in-game pause system triggered seamlessly via ESC, P, or the on-screen HUD button. Displays a centered modal dialog enabling players to Resume Match, Restart Match, or safely Quit to the Main Menu while instantly freezing physics integration and countdown timers.")
+         "The in-game pause system triggered seamlessly via ESC, P, or the on-screen HUD button. Displays a centered modal dialog enabling players to Resume Match, Restart Match, or safely Quit to the Main Menu while instantly freezing physics integration and countdown timers."),
+        ("11_pause_confirm.png", "Figure 5.11: Action Confirmation Dialog (Restart / Quit Safety Guard)",
+         "Two-stage safety confirmation modal preventing accidental match termination. Prompting players to confirm with explicit YES / CANCEL buttons (or ENTER / ESC / Y / N hotkeys) before resetting score progress or returning to the main menu.")
     ]
 
     base_dir = "/Users/ravichauhan/Desktop/COLLEGE/C/PROJ/screenshots"
@@ -417,7 +419,7 @@ def build_report():
     add_heading_styled(doc, "Chapter 6: Sample Inputs and Outputs", level=1)
     doc.add_paragraph("The table below details user input actions and the corresponding real-time engine responses:")
 
-    io_table = doc.add_table(rows=13, cols=4)
+    io_table = doc.add_table(rows=14, cols=4)
     io_cols = [Inches(1.4), Inches(1.5), Inches(1.3), Inches(2.3)]
     io_table.rows[0].cells[0].text = "Input Category"
     io_table.rows[0].cells[1].text = "User Action / Key"
@@ -435,7 +437,8 @@ def build_report():
         ["Instant Replay", "Press V", "In-Game", "Plays back last 300 frames in 0.35x slow motion."],
         ["Save Replay", "Press F5", "In-Game", "Serializes circular frame buffer to replay.replay."],
         ["Pause / Resume", "Press P / ESC / Click HUD", "In-Game", "Freezes physics loop and summons Match Paused modal overlay."],
-        ["Restart / Quit", "Press R or M in Modal", "Paused", "Instantly resets match state or cleanly disconnects to Main Menu."]
+        ["Restart / Quit", "Press R or M in Modal", "Paused", "Prompts two-stage safety confirmation modal preventing accidental data loss."],
+        ["Confirm Action", "Press ENTER / Y or ESC / N", "Confirmation Modal", "Executes confirmed action or aborts back to pause menu cleanly."]
     ]
     for r_idx, r_data in enumerate(io_data, start=1):
         for c_idx, val in enumerate(r_data):

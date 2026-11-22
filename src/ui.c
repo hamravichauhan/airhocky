@@ -171,7 +171,12 @@ bool ui_button(Rectangle r, const char *text, bool hovered)
     DrawRectangleRec(r, bg);
     DrawRectangleLinesEx(r, 1.5f, border);
 
-    int fs = 22;
+    int fs = 20;
+    if (r.height < 36)
+        fs = 15;
+    while (fs > 10 && MeasureText(text, fs) > (int)r.width - 12)
+        fs--;
+
     int tw = MeasureText(text, fs);
     DrawText(text,
              (int)(r.x + r.width / 2 - tw / 2),
