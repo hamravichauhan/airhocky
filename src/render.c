@@ -279,42 +279,6 @@ void render_combo_overlay(const MatchStats *s)
 
         DrawText(buf, FIELD_W / 2 - tw / 2, top + 10, fs, c);
     }
-
-    const char *hype = stats_hype_text(s);
-    if (hype)
-    {
-        float pulse = 0.7f + 0.3f * sinf(s->hype_pulse * 15.0f);
-        float fade = s->hype_timer / 1.8f;
-        if (fade > 1.0f)
-            fade = 1.0f;
-
-        unsigned char a = (unsigned char)(255 * fade * pulse);
-
-        Color c;
-        switch (s->hype)
-        {
-        case HYPE_NICE:
-            c = (Color){100, 255, 140, a};
-            break;
-        case HYPE_GREAT:
-            c = (Color){100, 200, 255, a};
-            break;
-        case HYPE_INSANE:
-            c = (Color){255, 180, 80, a};
-            break;
-        case HYPE_LEGENDARY:
-            c = (Color){255, 80, 180, a};
-            break;
-        default:
-            c = (Color){255, 255, 255, a};
-            break;
-        }
-
-        int fs = 56 + (int)(8 * pulse);
-        int tw = MeasureText(hype, fs);
-        DrawText(hype, FIELD_W / 2 - tw / 2,
-                 top + FIELD_H / 2 + 100, fs, c);
-    }
 #else
     (void)s;
 #endif

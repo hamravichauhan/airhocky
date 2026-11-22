@@ -12,7 +12,6 @@
 #include "heatmap.h"
 #include "themes.h"
 #include "trajectory.h"
-#include "commentary.h"
 #include "dynaudio.h"
 #include "tournament.h"
 #include "coach.h"
@@ -93,9 +92,6 @@ int main(void)
     HeatMap heat;
     heatmap_init(&heat);
     heat.visible = true;
-
-    Commentary commentary;
-    commentary_init(&commentary);
 
     DynamicAudio dynaudio;
     dynaudio_init(&dynaudio);
@@ -695,18 +691,12 @@ int main(void)
             replay_record(&replay, &game);
 
             stats_update(&stats, &game, dt);
-            commentary_update(&commentary, dt);
 
             if (game.ev_hit)
             {
                 int hitter = (game.puck.y < FIELD_H / 2.0f) ? 2 : 1;
                 stats_on_hit(&stats, hitter);
                 ai_record_player_hit(&ai, game.puck.x);
-
-                if (game.ev_hit_intensity > 0.75f)
-                    commentary_trigger(&commentary, CMT_POWER_SHOT);
-                else if (game.puck.y < 200.0f && game.puck.vy > 100.0f)
-                    commentary_trigger(&commentary, CMT_GREAT_SAVE);
             }
             if (game.ev_goal)
             {
@@ -714,9 +704,6 @@ int main(void)
                 ai_record_player_goal(&ai, game.puck.x);
                 if (is_ta && game.last_scorer == 1)
                     ta_score++;
-
-                commentary_trigger(&commentary,
-                                   game.last_scorer == 1 ? CMT_GOAL_P1 : CMT_GOAL_P2);
             }
 
             heatmap_record(&heat, game.puck.x, game.puck.y);
@@ -744,21 +731,6 @@ int main(void)
                 audio_play(SFX_HYPE, 1.0f);
                 Vector2 mid = {FIELD_W / 2.0f, FIELD_H / 2.0f};
                 particles_emit_ring(mid, (Color){255, 220, 100, 255});
-
-                if (stats.hype == HYPE_GREAT)
-                    commentary_trigger(&commentary, CMT_RALLY_10);
-                if (stats.hype == HYPE_INSANE)
-                    commentary_trigger(&commentary, CMT_RALLY_20);
-                if (stats.hype == HYPE_LEGENDARY)
-                    commentary_trigger(&commentary, CMT_INSANE);
-            }
-
-            if (commentary.timer > 0 &&
-                !commentary.shown &&
-                commentary.timer > commentary.duration - 0.1f)
-            {
-                audio_play(SFX_VOICE, dynaudio_get(&dynaudio));
-                commentary.shown = true;
             }
 
             float puck_speed = sqrtf(game.puck.vx * game.puck.vx +
@@ -1107,7 +1079,6 @@ int main(void)
                 render_tournament_hud(&tour);
             if (!replay_is_active(&replay))
                 render_combo_overlay(&stats);
-            commentary_draw(&commentary, 100);
             if (is_ta && !replay_is_active(&replay))
                 render_time_attack_hud(ta_time_left, ta_score);
             render_replay_banner(replay_is_active(&replay), 0);

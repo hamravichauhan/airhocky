@@ -11,7 +11,6 @@
 #include "settings.h"
 #include "settings_ui.h"
 #include "tournament.h"
-#include "commentary.h"
 #include "ui.h"
 #include <stdio.h>
 #include <string.h>
@@ -124,8 +123,8 @@ int main(void)
     stats.goals_conceded_p2 = 5;
     stats.top_puck_speed = 1120.0f;
     stats.match_time = 142.5f;
-    stats.hype = HYPE_INSANE;
-    stats.hype_timer = 2.0f;
+    stats.hype = HYPE_NONE;
+    stats.hype_timer = 0.0f;
 
     Records records;
     records.best_rally_ever = 26;
@@ -148,10 +147,6 @@ int main(void)
     tournament_init(&tour, TOUR_BO3);
     tour.wins_p1 = 1;
     tour.wins_p2 = 0;
-
-    Commentary commentary;
-    commentary_init(&commentary);
-    commentary_trigger(&commentary, CMT_POWER_SHOT);
 
     // 1. MAIN MENU
     BeginTextureMode(s_rt);
