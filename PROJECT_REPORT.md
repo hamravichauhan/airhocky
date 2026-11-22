@@ -197,9 +197,15 @@ The following screenshots were captured directly from the game engine during liv
 
 ---
 
-![Figure 5.9: LAN Multiplayer Host / Join Connection Interface](screenshots/09_lan_join.png)  
-**Figure 5.9: LAN Multiplayer Host / Join Connection Interface**  
-*Network connection interface allowing the client to input the host's LAN IPv4 address (e.g., 192.168.1.45) to initiate non-blocking TCP socket communication on port 50505.*
+![Figure 5.9: LAN Multiplayer 4-Digit Room Code Join Interface](screenshots/09_lan_join.png)  
+**Figure 5.9: LAN Multiplayer 4-Digit Room Code Join Interface**  
+*The modernized LAN join screen featuring automatic local UDP room beacon discovery and 4-digit Room Code pairing, eliminating manual IP typing while preserving low-level host-authoritative TCP synchronization.*
+
+---
+
+![Figure 5.10: In-Game Pause & Navigation Modal Overlay](screenshots/10_pause_modal.png)  
+**Figure 5.10: In-Game Pause & Navigation Modal Overlay**  
+*The in-game pause system triggered seamlessly via ESC, P, or the on-screen HUD button. Displays a centered modal dialog enabling players to Resume Match, Restart Match, or safely Quit to the Main Menu while instantly freezing physics integration and countdown timers.*
 
 ---
 
@@ -218,6 +224,9 @@ The table below details user input actions and the corresponding real-time engin
 | **Heatmap Display** | Press `TAB` | In-Game | Toggles $24 \times 32$ semi-transparent density overlay. |
 | **Theme Switching** | Press `T` | In-Game | Cycles palette (`Neon` $\rightarrow$ `Retro` $\rightarrow$ `Dark` $\rightarrow$ `Fire`). |
 | **Instant Replay** | Press `V` | In-Game | Plays back last 300 frames in $0.35\times$ slow motion. |
+| **Save Replay** | Press `F5` | In-Game | Serializes circular frame buffer to `replay.replay`. |
+| **Pause / Resume** | Press `P` / `ESC` / Click HUD | In-Game | Freezes physics loop and summons Match Paused modal overlay. |
+| **Restart / Quit** | Press `R` or `M` in Modal | Paused | Instantly resets match state or cleanly disconnects to Main Menu. |
 | **Save Replay** | Press `F5` | In-Game | Serializes circular frame buffer to `replay.replay`. |
 
 ### 6.1 Binary Network Protocol Payloads

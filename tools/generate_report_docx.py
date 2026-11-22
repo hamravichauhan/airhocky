@@ -401,7 +401,9 @@ def build_report():
         ("08_tournament_mode.png", "Figure 5.8: Tournament Format Selection (Best-of-3 / Best-of-5)",
          "Competitive tournament bracket selector enabling multi-match series play with persistent series score tracking and automated championship verification."),
         ("09_lan_join.png", "Figure 5.9: LAN Multiplayer 4-Digit Room Code Join Interface",
-         "The modernized LAN join screen featuring automatic local UDP room beacon discovery and 4-digit Room Code pairing. Eliminates manual IP typing while preserving low-level host-authoritative TCP socket synchronization.")
+         "The modernized LAN join screen featuring automatic local UDP room beacon discovery and 4-digit Room Code pairing. Eliminates manual IP typing while preserving low-level host-authoritative TCP socket synchronization."),
+        ("10_pause_modal.png", "Figure 5.10: In-Game Pause & Navigation Modal Overlay",
+         "The in-game pause system triggered seamlessly via ESC, P, or the on-screen HUD button. Displays a centered modal dialog enabling players to Resume Match, Restart Match, or safely Quit to the Main Menu while instantly freezing physics integration and countdown timers.")
     ]
 
     base_dir = "/Users/ravichauhan/Desktop/COLLEGE/C/PROJ/screenshots"
@@ -415,7 +417,7 @@ def build_report():
     add_heading_styled(doc, "Chapter 6: Sample Inputs and Outputs", level=1)
     doc.add_paragraph("The table below details user input actions and the corresponding real-time engine responses:")
 
-    io_table = doc.add_table(rows=11, cols=4)
+    io_table = doc.add_table(rows=13, cols=4)
     io_cols = [Inches(1.4), Inches(1.5), Inches(1.3), Inches(2.3)]
     io_table.rows[0].cells[0].text = "Input Category"
     io_table.rows[0].cells[1].text = "User Action / Key"
@@ -431,7 +433,9 @@ def build_report():
         ["Heatmap Display", "Press TAB", "In-Game", "Toggles 24x32 semi-transparent density overlay."],
         ["Theme Switching", "Press T", "In-Game", "Cycles palette (Neon -> Retro -> Dark -> Fire)."],
         ["Instant Replay", "Press V", "In-Game", "Plays back last 300 frames in 0.35x slow motion."],
-        ["Save Replay", "Press F5", "In-Game", "Serializes circular frame buffer to replay.replay."]
+        ["Save Replay", "Press F5", "In-Game", "Serializes circular frame buffer to replay.replay."],
+        ["Pause / Resume", "Press P / ESC / Click HUD", "In-Game", "Freezes physics loop and summons Match Paused modal overlay."],
+        ["Restart / Quit", "Press R or M in Modal", "Paused", "Instantly resets match state or cleanly disconnects to Main Menu."]
     ]
     for r_idx, r_data in enumerate(io_data, start=1):
         for c_idx, val in enumerate(r_data):

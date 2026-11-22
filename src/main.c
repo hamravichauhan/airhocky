@@ -123,6 +123,7 @@ int main(void)
     int ta_score = 0;
     int ta_best = 0;
     bool ta_active = false;
+    bool game_paused = false;
 
     char join_ip[64] = "";
     int ip_len = 0;
@@ -136,6 +137,7 @@ int main(void)
 #define GO(next)                \
     do                          \
     {                           \
+        game_paused = false;    \
         screen = (next);        \
         ui_trans_begin(&trans); \
     } while (0)
@@ -446,21 +448,89 @@ int main(void)
         {
             bool is_ta = (screen == SCREEN_TIME_ATTACK);
 
-            if (demo_mode && IsKeyPressed(KEY_ESCAPE))
+            Rectangle hud_pause_btn = {FIELD_W - 145, FIELD_H + 10, 130, 34};
+            Vector2 mouse_pos = GetMousePosition();
+            bool hud_pause_click = CheckCollisionPointRec(mouse_pos, hud_pause_btn) &&
+                                   IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+            if (demo_mode)
             {
-                demo_mode = false;
-                GO(SCREEN_MENU);
-                menu_sel = 0;
-                break;
+                if (IsKeyPressed(KEY_ESCAPE) || hud_pause_click)
+                {
+                    demo_mode = false;
+                    GO(SCREEN_MENU);
+                    menu_sel = 0;
+                    break;
+                }
+            }
+            else if (!replay_is_active(&replay))
+            {
+                if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_ESCAPE) || hud_pause_click)
+                {
+                    game_paused = !game_paused;
+                }
             }
 
-            /* ESC from gameplay → back to menu (not during demo/replay) */
-            if (!demo_mode && !replay_is_active(&replay) && IsKeyPressed(KEY_ESCAPE))
+            if (game_paused)
             {
-                net_close();
-                GO(SCREEN_MENU);
-                menu_sel = 0;
-                break;
+                Rectangle modal_card = {FIELD_W / 2 - 170, FIELD_H / 2 - 130, 340, 240};
+                Rectangle btn_resume  = {FIELD_W / 2 - 140, modal_card.y + 65,  280, 42};
+                Rectangle btn_restart = {FIELD_W / 2 - 140, modal_card.y + 118, 280, 42};
+                Rectangle btn_quit    = {FIELD_W / 2 - 140, modal_card.y + 171, 280, 42};
+
+                bool click_resume = CheckCollisionPointRec(mouse_pos, btn_resume) &&
+                                    IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+                bool click_restart = CheckCollisionPointRec(mouse_pos, btn_restart) &&
+                                     IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+                bool click_quit = CheckCollisionPointRec(mouse_pos, btn_quit) &&
+                                  IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+                if (click_resume || IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER))
+                {
+                    game_paused = false;
+                    break;
+                }
+                if (click_restart || IsKeyPressed(KEY_R))
+                {
+                    game_paused = false;
+                    settings_apply(&settings);
+                    if (is_ta)
+                    {
+                        game_init(&game, MODE_SOLO);
+                        ai_init(&ai, ai_from_settings(&settings));
+                        powerup_init(&powerups);
+                        stats_init(&stats);
+                        particles_clear();
+                        heatmap_init(&heat);
+                        replay_init(&replay);
+                        ta_time_left = 60.0f;
+                        ta_score = 0;
+                        ta_active = true;
+                    }
+                    else
+                    {
+                        int cur_mode = game.mode;
+                        game_init(&game, cur_mode);
+                        if (cur_mode == MODE_SOLO)
+                            ai_init(&ai, ai_from_settings(&settings));
+                        powerup_init(&powerups);
+                        stats_init(&stats);
+                        particles_clear();
+                        heatmap_init(&heat);
+                        replay_init(&replay);
+                    }
+                    break;
+                }
+                if (click_quit || IsKeyPressed(KEY_M) || IsKeyPressed(KEY_Q))
+                {
+                    game_paused = false;
+                    net_close();
+                    GO(SCREEN_MENU);
+                    menu_sel = 0;
+                    break;
+                }
+
+                break; /* Freeze physics and timers while game is paused */
             }
 
             if (replay_is_active(&replay))
@@ -1014,55 +1084,88 @@ int main(void)
             break;
 
         case SCREEN_PLAYING:
+        case SCREEN_TIME_ATTACK:
+        {
+            bool is_ta = (screen == SCREEN_TIME_ATTACK);
             render_field(&game);
             if (heat.visible && !replay_is_active(&replay))
                 heatmap_draw(&heat, 100);
-            if (!replay_is_active(&replay))
+            if (!is_ta && !replay_is_active(&replay))
                 trajectory_draw(&game, 100, IsKeyDown(KEY_LEFT_CONTROL));
             particles_draw(100);
             if (!replay_is_active(&replay))
                 powerup_draw(&powerups, 100);
-            if (in_tournament)
+            if (!is_ta && in_tournament)
                 render_tournament_hud(&tour);
             if (!replay_is_active(&replay))
                 render_combo_overlay(&stats);
             commentary_draw(&commentary, 100);
+            if (is_ta && !replay_is_active(&replay))
+                render_time_attack_hud(ta_time_left, ta_score);
             render_replay_banner(replay_is_active(&replay), 0);
+
+            /* --- Bottom HUD Navigation Bar (y = 800 .. 920) --- */
+            DrawRectangle(0, FIELD_H, FIELD_W, 120, (Color){10, 16, 26, 255});
+            DrawLine(0, FIELD_H, FIELD_W, FIELD_H, (Color){45, 75, 115, 200});
+
+            Rectangle hud_btn = {FIELD_W - 145, FIELD_H + 10, 130, 34};
+            Vector2 m_pos = GetMousePosition();
+            bool hud_btn_hover = CheckCollisionPointRec(m_pos, hud_btn);
 
             if (demo_mode)
             {
-                DrawText("DEMO MODE - Press ESC to stop",
-                         FIELD_W / 2 - MeasureText("DEMO MODE - Press ESC to stop", 20) / 2,
-                         FIELD_H + 30, 20, YELLOW);
+                DrawText("DEMO MODE ACTIVE", 16, FIELD_H + 18, 18, YELLOW);
+                ui_button(hud_btn, "EXIT (ESC)", hud_btn_hover);
+                DrawText("Press ESC or click EXIT to return to Main Menu",
+                         16, FIELD_H + 60, 14, UI_TEXT_DIM);
             }
             else if (replay_is_active(&replay))
             {
-                DrawText("V: replay   F5: save replay",
-                         10, FIELD_H + 130, 16, GRAY);
+                DrawText("SLOW-MO REPLAY ACTIVE (0.35x)", 16, FIELD_H + 18, 16, UI_ACCENT_HOT);
+                ui_button(hud_btn, "RESUME (P)", hud_btn_hover);
+                DrawText("V: Trigger Replay   |   F5: Save Replay File",
+                         16, FIELD_H + 60, 14, UI_TEXT);
             }
             else
             {
+                /* Row 1: Theme & Pause Button */
                 DrawText(TextFormat("Theme: %s (T)", themes_name(themes_current())),
-                         10, FIELD_H + 130, 16, GRAY);
-                DrawText("ESC: quit to menu   TAB: heatmap   CTRL: trajectory   SHIFT: spin   V: replay   F5: save",
-                         10, FIELD_H + 150, 14, DARKGRAY);
+                         16, FIELD_H + 18, 16, UI_ACCENT);
+
+                const char *btn_lbl = game_paused ? "RESUME (P)" : "PAUSE (P)";
+                ui_button(hud_btn, btn_lbl, hud_btn_hover);
+
+                /* Row 2: In-Game Shortcuts */
+                DrawText("ESC / P : Pause & Menu   |   TAB : Heatmap   |   CTRL : Trajectory",
+                         16, FIELD_H + 54, 14, UI_TEXT);
+
+                /* Row 3: Movement & Action Controls */
+                DrawText("V : Slow-Mo Replay   |   SHIFT : Spin   |   WASD / Arrows : Move",
+                         16, FIELD_H + 80, 13, UI_TEXT_DIM);
+            }
+
+            /* --- Pause Modal Overlay --- */
+            if (game_paused)
+            {
+                DrawRectangle(0, 0, FIELD_W, FIELD_H + 120, (Color){5, 10, 20, 215});
+
+                Rectangle modal_card = {FIELD_W / 2 - 170, FIELD_H / 2 - 130, 340, 240};
+                ui_panel(modal_card);
+
+                const char *ptitle = "MATCH PAUSED";
+                int ptw = MeasureText(ptitle, 26);
+                DrawText(ptitle, FIELD_W / 2 - ptw / 2, modal_card.y + 20, 26, UI_ACCENT_HOT);
+
+                Rectangle btn_resume  = {FIELD_W / 2 - 140, modal_card.y + 65,  280, 42};
+                Rectangle btn_restart = {FIELD_W / 2 - 140, modal_card.y + 118, 280, 42};
+                Rectangle btn_quit    = {FIELD_W / 2 - 140, modal_card.y + 171, 280, 42};
+
+                ui_button(btn_resume,  "Resume Match (ESC / P)", CheckCollisionPointRec(m_pos, btn_resume));
+                ui_button(btn_restart, "Restart Match (R)",      CheckCollisionPointRec(m_pos, btn_restart));
+                ui_button(btn_quit,    "Quit to Main Menu (M)",  CheckCollisionPointRec(m_pos, btn_quit));
             }
             break;
-
-        case SCREEN_TIME_ATTACK:
-            render_field(&game);
-            if (heat.visible && !replay_is_active(&replay))
-                heatmap_draw(&heat, 100);
-            particles_draw(100);
-            if (!replay_is_active(&replay))
-                powerup_draw(&powerups, 100);
-            if (!replay_is_active(&replay))
-                render_combo_overlay(&stats);
-            commentary_draw(&commentary, 100);
-            if (!replay_is_active(&replay))
-                render_time_attack_hud(ta_time_left, ta_score);
-            render_replay_banner(replay_is_active(&replay), 0);
-            break;
+        }
 
         case SCREEN_REPLAY_LOADED:
             render_field(&game);

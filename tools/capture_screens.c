@@ -29,6 +29,40 @@ static void snap(const char *path)
     printf("Saved screenshot: %s\n", path);
 }
 
+static void draw_hud(const char *theme_name, bool show_pause_modal)
+{
+    DrawRectangle(0, FIELD_H, FIELD_W, 120, (Color){10, 16, 26, 255});
+    DrawLine(0, FIELD_H, FIELD_W, FIELD_H, (Color){45, 75, 115, 200});
+
+    Rectangle hud_btn = {FIELD_W - 145, FIELD_H + 10, 130, 34};
+    DrawText(TextFormat("Theme: %s (T)", theme_name), 16, FIELD_H + 18, 16, UI_ACCENT);
+    ui_button(hud_btn, show_pause_modal ? "RESUME (P)" : "PAUSE (P)", false);
+
+    DrawText("ESC / P : Pause & Menu   |   TAB : Heatmap   |   CTRL : Trajectory",
+             16, FIELD_H + 54, 14, UI_TEXT);
+    DrawText("V : Slow-Mo Replay   |   SHIFT : Spin   |   WASD / Arrows : Move",
+             16, FIELD_H + 80, 13, UI_TEXT_DIM);
+
+    if (show_pause_modal)
+    {
+        DrawRectangle(0, 0, FIELD_W, FIELD_H + 120, (Color){5, 10, 20, 215});
+        Rectangle modal_card = {FIELD_W / 2 - 170, FIELD_H / 2 - 130, 340, 240};
+        ui_panel(modal_card);
+
+        const char *ptitle = "MATCH PAUSED";
+        int ptw = MeasureText(ptitle, 26);
+        DrawText(ptitle, FIELD_W / 2 - ptw / 2, modal_card.y + 20, 26, UI_ACCENT_HOT);
+
+        Rectangle btn_resume  = {FIELD_W / 2 - 140, modal_card.y + 65,  280, 42};
+        Rectangle btn_restart = {FIELD_W / 2 - 140, modal_card.y + 118, 280, 42};
+        Rectangle btn_quit    = {FIELD_W / 2 - 140, modal_card.y + 171, 280, 42};
+
+        ui_button(btn_resume,  "Resume Match (ESC / P)", false);
+        ui_button(btn_restart, "Restart Match (R)",      false);
+        ui_button(btn_quit,    "Quit to Main Menu (M)",  false);
+    }
+}
+
 int main(void)
 {
     SetTraceLogLevel(LOG_WARNING);
@@ -129,8 +163,7 @@ int main(void)
     particles_emit_spark((Vector2){280, 480}, (Vector2){1, -1}, 0.8f);
     particles_draw(100);
     render_combo_overlay(&stats);
-    DrawText("Theme: Neon (T)", 10, FIELD_H + 130, 16, GRAY);
-    DrawText("ESC: menu   TAB: heatmap   CTRL: trajectory   SHIFT: spin", 10, FIELD_H + 150, 14, DARKGRAY);
+    draw_hud("Neon", false);
     snap("screenshots/02_gameplay_neon.png");
 
     // 3. TRAJECTORY & FLICK SHOT
@@ -139,7 +172,7 @@ int main(void)
     render_field(&game);
     trajectory_draw(&game, 100, true);
     powerup_draw(&powerups, 100);
-    DrawText("TRAJECTORY PREDICTION ACTIVE (CTRL)", FIELD_W / 2 - 160, FIELD_H + 130, 16, YELLOW);
+    draw_hud("Neon", false);
     snap("screenshots/03_trajectory_prediction.png");
 
     // 4. HEATMAP OVERLAY
@@ -147,7 +180,7 @@ int main(void)
     ClearBackground((Color){20, 25, 35, 255});
     render_field(&game);
     heatmap_draw(&heat, 100);
-    DrawText("HEATMAP DENSITY OVERLAY (TAB)", FIELD_W / 2 - 140, FIELD_H + 130, 16, ORANGE);
+    draw_hud("Neon", false);
     snap("screenshots/04_heatmap_overlay.png");
 
     // 5. MATCH STATISTICS SCREEN
@@ -204,6 +237,15 @@ int main(void)
     ui_hint("Press ESC to return to menu");
     ui_back_button_draw();
     snap("screenshots/09_lan_join.png");
+
+    // 10. IN-GAME PAUSE & NAVIGATION MODAL
+    BeginTextureMode(s_rt);
+    ClearBackground((Color){20, 25, 35, 255});
+    render_field(&game);
+    powerup_draw(&powerups, 100);
+    render_combo_overlay(&stats);
+    draw_hud("Neon", true);
+    snap("screenshots/10_pause_modal.png");
 
     UnloadRenderTexture(s_rt);
     CloseWindow();
