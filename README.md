@@ -20,12 +20,11 @@ A high-performance, real-time 2D Air Hockey game engine built from scratch in pu
 
 1. **Solo Mode:** Single player vs. the 5-state adaptive computer opponent (*Easy, Medium, Hard* presets).
 2. **Local 2-Player:** Split-keyboard competition on a single laptop/PC.
-3. **Host LAN Game:** Host an authoritative game server over local Wi-Fi or Ethernet on port `50505`.
-4. **Join LAN Game:** Connect directly to a host machine via IPv4 address with instant handshake sync.
-5. **Tournament Mode:** Multi-match championship series in **Best-of-3 (BO3)** or **Best-of-5 (BO5)** formats.
-6. **Time Attack:** 60-second high-score sprint against the clock to score maximum goals.
+3. **Host LAN Game:** Host an authoritative game server over local Wi-Fi or Ethernet on port `50505` with automated 4-digit room code beacon broadcast.
+4. **Join LAN Game:** Connect directly to a host machine via 4-digit room code auto-discovery or direct IPv4 address.
+5. **Time Attack:** 60-second high-score sprint against the clock to score maximum goals.
+6. **Tournament Mode:** Multi-match championship series in **Best-of-3 (BO3)** or **Best-of-5 (BO5)** formats.
 7. **Bot vs. Bot Demo:** Automated exhibition match showcasing two autonomous bots competing.
-8. **Settings:** In-game configuration dashboard with volume, speeds, and themes saved to `settings.dat`.
 
 ---
 
@@ -167,14 +166,14 @@ You can run an authoritative multiplayer match between two laptops on the same l
 ├── PROJECT_REPORT.md          # Markdown mirrored copy of the project report
 ├── VIDEO_PRODUCTION_SCRIPT.md # 10-Minute technical video voiceover script
 ├── diagrams/                  # 5 High-resolution Mermaid architecture flowcharts
-├── screenshots/               # 9 Native 60 FPS in-game screen captures
+├── screenshots/               # 10 Native 60 FPS in-game screen captures
 ├── video_assets/              # 5 High-speed 60 FPS video clips & 5 code cards
-├── src/                       # 22 C11 source and header compilation units
-│   ├── main.c                 # Master orchestrator & 12-state screen manager
+├── src/                       # 18 C11 source and header compilation units
+│   ├── main.c                 # Master orchestrator & screen manager
 │   ├── game.c / game.h        # Continuous sub-stepping physics & kinematics
 │   ├── net.c / net.h          # Cross-platform sockets (POSIX + Winsock2)
 │   ├── protocol.h             # 12-byte MSG_INPUT & 56-byte MSG_STATE packets
-│   ├── ai.c / ai.h            # 5-State FSM autonomous opponent with learning
+│   ├── solomode.c / solomode.h# 5-State FSM autonomous opponent with learning
 │   ├── audio.c / audio.h      # Procedural PCM audio synthesizer in RAM
 │   ├── dynaudio.c / dynaudio.h# Dynamic audio tension & pitch scaling
 │   ├── render.c / render.h    # 2D OpenGL rendering & HUD
@@ -187,8 +186,7 @@ You can run an authoritative multiplayer match between two laptops on the same l
 │   ├── trajectory.c / .h      # 60-Step predictive cushion raycasting
 │   ├── tournament.c / .h      # Best-of-3 & Best-of-5 series progression
 │   ├── themes.c / .h          # 4 Visual color palettes (Neon, Retro, Dark, Fire)
-│   ├── settings.c / .h        # Parameter serialization to settings.dat
-│   └── settings_ui.c / .h     # Interactive settings menu sliders & toggles
+│   └── replay.c / .h          # Circular ring buffer & replay serialization
 └── tools/                     # Automated tools for screenshots, clips & docs
 ```
 

@@ -18,7 +18,7 @@
 | **MCA-2026-01** | Team Member 1 (Lead) | **Network & Systems Architect** | `main.c`, `net.c`, `protocol.h`, `features.h` |
 | **MCA-2026-02** | Team Member 2 | **Physics & Simulation Engineer** | `game.c`, `trajectory.c`, `input.c` |
 | **MCA-2026-03** | Team Member 3 | **Graphics & Audio DSP Engineer** | `render.c`, `audio.c`, `dynaudio.c`, `particles.c` |
-| **MCA-2026-04** | Team Member 4 | **Solo Mode & Data Systems Engineer**| `solomode.c`, `replay.c`, `stats.c`, `heatmap.c`, `settings.c` |
+| **MCA-2026-04** | Team Member 4 | **Solo Mode & Data Systems Engineer**| `solomode.c`, `replay.c`, `stats.c`, `heatmap.c` |
 
 **Under the Guidance of:**  
 *[Faculty Guide / Department Professor Name]*  
@@ -140,8 +140,8 @@ The project consists of 22 pairs of C source (`.c`) and header (`.h`) files tota
 ### 4.7 Gameplay Modifiers & Telemetry (`src/powerup.c`, `src/heatmap.c`, `src/replay.c`, `src/tournament.c`)
 `src/powerup.c` manages collectible arena tokens (**Grow** paddle, **Slow** puck, **Freeze** opponent) with spawn intervals and active life timers. `src/heatmap.c` tracks puck occupancy across a $24 \times 32$ grid with exponential decay, rendering a semi-transparent court density map (toggled with `TAB`). `src/replay.c` maintains a 300-frame circular ring buffer (5 seconds at 60 FPS) enabling instant slow-motion goal replays (`V` key) and disk export (`F5`). `src/tournament.c` manages Best-of-3 and Best-of-5 competitive tournament series tracking.
 
-### 4.8 Settings & Data Persistence (`src/settings.c`, `src/settings_ui.c`, `src/stats.c`)
-`src/settings.c` handles serialization and deserialization of match parameters (win score limit, puck/paddle speeds, theme, volume) to `settings.dat`. `src/settings_ui.c` renders the interactive settings menu with sliders and toggle buttons. `src/stats.c` monitors real-time match metrics (rallies, hit accuracy, hype meter) and persists lifetime high scores (fastest puck ever, longest rally) into `airhockey.dat`.
+### 4.8 Telemetry & High-Score Persistence (`src/stats.c`)
+`src/stats.c` monitors real-time match telemetry (rallies, hit conversion accuracy, top puck velocity, hype meter) and handles binary struct serialization to `airhockey.dat`. It persists all-time hall-of-fame records (longest rally, fastest recorded puck shot, maximum goals, lifetime matches) across game restarts with robust `fopen`, `fread`, and `fwrite` error validation.
 
 ---
 
@@ -151,7 +151,7 @@ The following screenshots were captured directly from the game engine during liv
 
 ![Figure 5.1: Main Menu & Navigation Interface](screenshots/01_main_menu.png)  
 **Figure 5.1: Main Menu & Navigation Interface**  
-*The main menu screen rendered at 60 FPS in raylib, providing seamless keyboard and mouse navigation across 9 menu options (Solo Mode, Local 2-Player, Host LAN, Join LAN, Time Attack, Tournament, AI vs AI Demo, Settings, and Quit).*
+*The main menu screen rendered at 60 FPS in raylib, providing seamless keyboard and mouse navigation across 8 streamlined game modes (Solo Mode, Local 2-Player, Host LAN, Join LAN, Time Attack, Tournament, AI vs AI Demo, and Quit).*
 
 ---
 
@@ -163,7 +163,7 @@ The following screenshots were captured directly from the game engine during liv
 
 ![Figure 5.3: Predictive Trajectory Raycasting Engine](screenshots/03_trajectory_prediction.png)  
 **Figure 5.3: Predictive Trajectory Raycasting Engine**  
-*Demonstrates the real-time trajectory engine (toggled via CTRL) projecting the puck's bank reflections up to 3 seconds into the future using forward raycasting and cushion normal calculations.*
+*Demonstrates the real-time trajectory engine (toggled via CTRL / C) projecting the puck's bank reflections up to 3 seconds into the future using forward raycasting and cushion normal calculations.*
 
 ---
 
@@ -185,27 +185,27 @@ The following screenshots were captured directly from the game engine during liv
 
 ---
 
-![Figure 5.7: Interactive Configuration & Settings UI](screenshots/07_settings_menu.png)  
-**Figure 5.7: Interactive Configuration & Settings UI**  
-*Interactive settings screen allowing players to configure winning goal limits, puck/paddle velocity multipliers, power-up spawn intervals, visual themes, and sound volume, serialized to settings.dat.*
-
----
-
-![Figure 5.8: Tournament Format Selection (Best-of-3 / Best-of-5)](screenshots/08_tournament_mode.png)  
-**Figure 5.8: Tournament Format Selection (Best-of-3 / Best-of-5)**  
+![Figure 5.7: Tournament Format Selection (Best-of-3 / Best-of-5)](screenshots/07_tournament_mode.png)  
+**Figure 5.7: Tournament Format Selection (Best-of-3 / Best-of-5)**  
 *Competitive tournament bracket selector enabling multi-match series play with persistent series score tracking and automated championship verification.*
 
 ---
 
-![Figure 5.9: LAN Multiplayer 4-Digit Room Code Join Interface](screenshots/09_lan_join.png)  
-**Figure 5.9: LAN Multiplayer 4-Digit Room Code Join Interface**  
+![Figure 5.8: LAN Multiplayer 4-Digit Room Code Join Interface](screenshots/08_lan_join.png)  
+**Figure 5.8: LAN Multiplayer 4-Digit Room Code Join Interface**  
 *The modernized LAN join screen featuring automatic local UDP room beacon discovery and 4-digit Room Code pairing, eliminating manual IP typing while preserving low-level host-authoritative TCP synchronization.*
 
 ---
 
-![Figure 5.10: In-Game Pause & Navigation Modal Overlay](screenshots/10_pause_modal.png)  
-**Figure 5.10: In-Game Pause & Navigation Modal Overlay**  
+![Figure 5.9: In-Game Pause & Navigation Modal Overlay](screenshots/09_pause_modal.png)  
+**Figure 5.9: In-Game Pause & Navigation Modal Overlay**  
 *The in-game pause system triggered seamlessly via ESC, P, or the on-screen HUD button. Displays a centered modal dialog enabling players to Resume Match, Restart Match, or safely Quit to the Main Menu while instantly freezing physics integration and countdown timers.*
+
+---
+
+![Figure 5.10: Action Confirmation Dialog (Restart / Quit Safety Guard)](screenshots/10_pause_confirm.png)  
+**Figure 5.10: Action Confirmation Dialog (Restart / Quit Safety Guard)**  
+*Two-stage safety confirmation modal preventing accidental match termination. Prompting players to confirm with explicit YES / CANCEL buttons (or ENTER / ESC / Y / N hotkeys) before resetting score progress or returning to the main menu.*
 
 ---
 
@@ -215,19 +215,19 @@ The table below details user input actions and the corresponding real-time engin
 
 | Input Category | User Action / Key | Engine State | System Output / Response |
 | :--- | :--- | :--- | :--- |
-| **Menu Navigation** | `UP` / `DOWN` Arrows | Main Menu | Cycles highlighted button with audio tick sound. |
-| **Selection** | `ENTER` Key | Main Menu | Transitions to chosen screen with smooth alpha fade. |
+| **Menu Navigation** | `W` / `S` or `UP` / `DOWN` Arrows | Main Menu | Cycles highlighted button with audio tick sound. |
+| **Selection** | `ENTER` or `SPACE` Key | Main Menu | Transitions to chosen screen with smooth alpha fade. |
 | **Player 1 Paddle** | `W`, `A`, `S`, `D` | In-Game | Applies acceleration vector; clamped to lower half-court. |
 | **Player 2 Paddle** | `Arrow Keys` | Local Play | Applies acceleration vector; clamped to upper half-court. |
 | **Flick Shot** | Fast Paddle Swing | In-Game | Imparts $0.35 \times \text{paddle\_speed}$ velocity bonus boost to puck. |
-| **Trajectory Line** | Hold `LEFT CTRL` | In-Game | Raycasts 60 forward steps showing bounce reflections. |
+| **Trajectory Line** | Hold `CTRL` / `CMD` or Press `C` | In-Game | Raycasts 60 forward steps showing bounce reflections. |
 | **Heatmap Display** | Press `TAB` | In-Game | Toggles $24 \times 32$ semi-transparent density overlay. |
 | **Theme Switching** | Press `T` | In-Game | Cycles palette (`Neon` $\rightarrow$ `Retro` $\rightarrow$ `Dark` $\rightarrow$ `Fire`). |
 | **Instant Replay** | Press `V` | In-Game | Plays back last 300 frames in $0.35\times$ slow motion. |
 | **Save Replay** | Press `F5` | In-Game | Serializes circular frame buffer to `replay.replay`. |
 | **Pause / Resume** | Press `P` / `ESC` / Click HUD | In-Game | Freezes physics loop and summons Match Paused modal overlay. |
-| **Restart / Quit** | Press `R` or `M` in Modal | Paused | Instantly resets match state or cleanly disconnects to Main Menu. |
-| **Save Replay** | Press `F5` | In-Game | Serializes circular frame buffer to `replay.replay`. |
+| **Restart / Quit** | Press `R` or `M` in Modal | Paused | Prompts two-stage safety confirmation modal preventing accidental data loss. |
+| **Confirm Action** | Press `ENTER` / `Y` or `ESC` / `N` | Confirmation Modal | Executes confirmed action or aborts back to pause menu cleanly. |
 
 ### 6.1 Binary Network Protocol Payloads
 
@@ -252,28 +252,21 @@ Host -> Client (MSG_STATE Packet - 56 Bytes):
 
 ### 6.2 Persistent Disk File Samples
 
-Sample contents of configuration and lifetime records files:
+Sample contents of lifetime records and binary replay capture files:
 
 ```text
-File: settings.dat (Plaintext configuration):
-  7      <- win_score (goals needed to win)
-  1      <- rounds (number of games in series)
-  0.00   <- round_time_limit (0 = disabled)
-  1      <- puck_speed (SPEED_NORMAL)
-  1      <- paddle_speed (SPEED_NORMAL)
-  2      <- powerups (POWERUP_NORMAL)
-  1      <- table_size (SIZE_NORMAL)
-  1      <- ai_difficulty (AI_MEDIUM)
-  0      <- theme_idx (THEME_NEON)
-  80     <- volume (80%)
-  1      <- sound_on (enabled)
-
-File: airhockey.dat (All-time records):
+File: airhockey.dat (All-time hall-of-fame records):
   26     <- best_rally_ever (longest volley)
   1380.0 <- fastest_puck_ever (px/s)
   7      <- most_goals_p1_ever
   7      <- most_goals_p2_ever
-  42     <- matches_played (lifetime matches)
+  42     <- matches_played (lifetime matches count)
+
+File: replay.replay (Binary circular frame buffer export):
+  [0x00..0x03] uint32_t magic = 0x41484B59 ('AHKY')
+  [0x04..0x07] uint32_t count = 300 frames (5.0s circular buffer)
+  [0x08..0x1B] Frame 0 payload (p1x, p1y, p2x, p2y, puck_x, puck_y, spin)
+  ... 300 sequential telemetry frames at 60 FPS ...
 ```
 
 ---

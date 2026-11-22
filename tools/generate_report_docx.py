@@ -327,7 +327,7 @@ def build_report():
         ("4.1 Master Orchestrator (src/main.c, src/features.h)",
          "src/main.c acts as the director of the entire game engine. It initializes the 600x920 raylib window, sets up audio and particle subsystems, "
          "loads saved disk preferences, and drives the 60 FPS game loop. It implements a finite screen state manager governing 12 screens (SCREEN_MENU, "
-         "SCREEN_PLAYING, SCREEN_HOST_WAIT, SCREEN_JOIN_INPUT, SCREEN_STATS, SCREEN_SETTINGS, SCREEN_TOURNAMENT_DIFF, SCREEN_TIME_ATTACK, etc.). "
+         "SCREEN_PLAYING, SCREEN_HOST_WAIT, SCREEN_JOIN_INPUT, SCREEN_STATS, SCREEN_TOURNAMENT_DIFF, SCREEN_TIME_ATTACK, SCREEN_GAMEOVER, etc.). "
          "src/features.h provides compile-time feature flags (#define FEATURE_HEATMAP 1, etc.) allowing individual capabilities to be toggled for testing."),
          
         ("4.2 2D Physics & Predictive Trajectory Engine (src/game.c, src/trajectory.c)",
