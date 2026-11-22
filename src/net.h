@@ -10,6 +10,9 @@ bool net_host_start(void);
 bool net_client_connect(const char *ip);
 void net_close(void);
 
+/* Local IP discovery */
+const char *net_get_local_ip(void);
+
 /* State */
 bool net_is_connected(void);
 bool net_is_host(void);

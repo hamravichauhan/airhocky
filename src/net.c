@@ -19,8 +19,11 @@ typedef SOCKET socket_t;
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/select.h>
+#include <ifaddrs.h>
 typedef int socket_t;
 #define INVALID_SOCK (-1)
 #define CLOSESOCK close
@@ -42,13 +45,13 @@ static void init_winsock(void)
 static inline bool is_would_block(void)
 {
     int err = WSAGetLastError();
-    return (err == WSAEWOULDBLOCK);
+    return (err == WSAEWOULDBLOCK || err == WSAEINPROGRESS);
 }
 #else
 static inline void init_winsock(void) {}
 static inline bool is_would_block(void)
 {
-    return (errno == EAGAIN || errno == EWOULDBLOCK);
+    return (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINPROGRESS);
 }
 #endif
 
@@ -58,6 +61,10 @@ static socket_t srv_fd = INVALID_SOCK; /* listening socket (host only) */
 static socket_t cli_fd = INVALID_SOCK; /* connected socket */
 static bool is_host = false;
 static bool connected = false;
+
+/* Packet streaming buffer */
+static uint8_t s_rx_buf[sizeof(Packet)];
+static size_t s_rx_len = 0;
 
 /* set socket non-blocking */
 static void set_nonblocking(socket_t fd)
@@ -72,7 +79,55 @@ static void set_nonblocking(socket_t fd)
 #endif
 }
 
-/* send entire buffer (handles partial sends) */
+/* disable Nagle's algorithm for zero latency */
+static void set_tcp_nodelay(socket_t fd)
+{
+    int flag = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const char *)&flag, sizeof(flag));
+}
+
+/* ---------------- IP discovery ---------------- */
+
+const char *net_get_local_ip(void)
+{
+    static char ip_buf[64] = "127.0.0.1";
+#ifdef _WIN32
+    init_winsock();
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == 0)
+    {
+        struct hostent *he = gethostbyname(hostname);
+        if (he != NULL && he->h_addr_list[0] != NULL)
+        {
+            struct in_addr addr;
+            memcpy(&addr, he->h_addr_list[0], sizeof(struct in_addr));
+            const char *ip_str = inet_ntoa(addr);
+            if (ip_str && strcmp(ip_str, "127.0.0.1") != 0)
+                strncpy(ip_buf, ip_str, sizeof(ip_buf) - 1);
+        }
+    }
+#else
+    struct ifaddrs *ifaddr, *ifa;
+    if (getifaddrs(&ifaddr) != -1)
+    {
+        for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
+        {
+            if (!ifa->ifa_addr || ifa->ifa_addr->sa_family != AF_INET)
+                continue;
+            if (strcmp(ifa->ifa_name, "lo0") == 0 || strcmp(ifa->ifa_name, "lo") == 0)
+                continue;
+
+            struct sockaddr_in *p = (struct sockaddr_in *)ifa->ifa_addr;
+            inet_ntop(AF_INET, &p->sin_addr, ip_buf, sizeof(ip_buf));
+            break;
+        }
+        freeifaddrs(ifaddr);
+    }
+#endif
+    return ip_buf;
+}
+
+/* send entire buffer */
 static bool send_all(socket_t fd, const void *buf, size_t len)
 {
     const char *p = (const char *)buf;
@@ -97,35 +152,38 @@ static bool send_all(socket_t fd, const void *buf, size_t len)
     return true;
 }
 
-/* receive exactly len bytes into buf (non-blocking) */
-static bool recv_all(socket_t fd, void *buf, size_t len)
+/* receive and reassemble packets without stream corruption */
+static bool recv_packet(socket_t fd, Packet *out)
 {
-    char *p = (char *)buf;
-    size_t got = 0;
-    while (got < len)
+    while (s_rx_len < sizeof(Packet))
     {
 #ifdef _WIN32
-        int n = recv(fd, p + got, (int)(len - got), 0);
+        int n = recv(fd, (char *)(s_rx_buf + s_rx_len), (int)(sizeof(Packet) - s_rx_len), 0);
 #else
-        ssize_t n = recv(fd, p + got, len - got, 0);
+        ssize_t n = recv(fd, (char *)(s_rx_buf + s_rx_len), sizeof(Packet) - s_rx_len, 0);
 #endif
         if (n < 0)
         {
             if (is_would_block())
-                return false; /* not ready */
+                return false; /* Wait for remaining bytes on next frame tick */
 #ifndef _WIN32
             if (errno == EINTR)
                 continue;
 #endif
+            connected = false;
             return false;
         }
         if (n == 0)
         {
             connected = false;
-            return false;
-        } /* peer closed */
-        got += (size_t)n;
+            s_rx_len = 0;
+            return false; /* Remote closed connection */
+        }
+        s_rx_len += (size_t)n;
     }
+
+    memcpy(out, s_rx_buf, sizeof(Packet));
+    s_rx_len = 0;
     return true;
 }
 
@@ -145,6 +203,7 @@ bool net_host_start(void)
 
     int opt = 1;
     setsockopt(srv_fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&opt, sizeof(opt));
+    set_tcp_nodelay(srv_fd);
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -154,7 +213,7 @@ bool net_host_start(void)
 
     if (bind(srv_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
-        TraceLog(LOG_ERROR, "bind() failed");
+        TraceLog(LOG_ERROR, "bind() failed on port %d", NET_PORT);
         CLOSESOCK(srv_fd);
         srv_fd = INVALID_SOCK;
         return false;
@@ -172,8 +231,9 @@ bool net_host_start(void)
 
     is_host = true;
     connected = false;
+    s_rx_len = 0;
 
-    TraceLog(LOG_INFO, "Hosting on port %d — waiting for client", NET_PORT);
+    TraceLog(LOG_INFO, "Hosting on IP %s, port %d — waiting for client", net_get_local_ip(), NET_PORT);
     return true;
 }
 
@@ -184,6 +244,9 @@ bool net_client_connect(const char *ip)
     init_winsock();
     net_close();
 
+    if (!ip || strlen(ip) == 0)
+        return false;
+
     cli_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (cli_fd == INVALID_SOCK)
     {
@@ -191,32 +254,71 @@ bool net_client_connect(const char *ip)
         return false;
     }
 
+    set_tcp_nodelay(cli_fd);
+
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(NET_PORT);
     if (inet_pton(AF_INET, ip, &addr.sin_addr) != 1)
     {
-        TraceLog(LOG_ERROR, "Invalid IP: %s", ip);
+        TraceLog(LOG_ERROR, "Invalid IP format: %s", ip);
         CLOSESOCK(cli_fd);
         cli_fd = INVALID_SOCK;
         return false;
     }
 
-    if (connect(cli_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-    {
-        TraceLog(LOG_ERROR, "connect() failed");
-        CLOSESOCK(cli_fd);
-        cli_fd = INVALID_SOCK;
-        return false;
-    }
-
+    /* Non-blocking connect with a 2.5-second timeout so window never hangs */
     set_nonblocking(cli_fd);
+    int res = connect(cli_fd, (struct sockaddr *)&addr, sizeof(addr));
+    if (res < 0)
+    {
+        if (is_would_block())
+        {
+            fd_set wfds, efds;
+            FD_ZERO(&wfds);
+            FD_ZERO(&efds);
+            FD_SET(cli_fd, &wfds);
+            FD_SET(cli_fd, &efds);
+
+            struct timeval tv;
+            tv.tv_sec = 2;
+            tv.tv_usec = 500000; /* 2.5s timeout */
+
+            int sel = select((int)(cli_fd + 1), NULL, &wfds, &efds, &tv);
+            if (sel <= 0 || FD_ISSET(cli_fd, &efds))
+            {
+                TraceLog(LOG_ERROR, "Connection timed out to %s:%d", ip, NET_PORT);
+                CLOSESOCK(cli_fd);
+                cli_fd = INVALID_SOCK;
+                return false;
+            }
+
+            int so_err = 0;
+            socklen_t slen = sizeof(so_err);
+            getsockopt(cli_fd, SOL_SOCKET, SO_ERROR, (char *)&so_err, &slen);
+            if (so_err != 0)
+            {
+                TraceLog(LOG_ERROR, "Socket connect error to %s:%d", ip, NET_PORT);
+                CLOSESOCK(cli_fd);
+                cli_fd = INVALID_SOCK;
+                return false;
+            }
+        }
+        else
+        {
+            TraceLog(LOG_ERROR, "connect() failed immediately");
+            CLOSESOCK(cli_fd);
+            cli_fd = INVALID_SOCK;
+            return false;
+        }
+    }
 
     is_host = false;
     connected = true;
+    s_rx_len = 0;
 
-    TraceLog(LOG_INFO, "Connected to %s:%d", ip, NET_PORT);
+    TraceLog(LOG_INFO, "Connected to Host at %s:%d", ip, NET_PORT);
     return true;
 }
 
@@ -236,6 +338,7 @@ void net_close(void)
     }
     connected = false;
     is_host = false;
+    s_rx_len = 0;
 }
 
 bool net_is_connected(void) { return connected; }
@@ -247,6 +350,7 @@ bool net_send_input(float tx, float ty)
 {
     if (!connected || is_host || cli_fd == INVALID_SOCK)
         return false;
+
     Packet p;
     memset(&p, 0, sizeof(p));
     p.type = MSG_INPUT;
@@ -262,7 +366,7 @@ bool net_poll_input(float *tx, float *ty)
     if (!is_host)
         return false;
 
-    /* Try to accept a new client if we don't have one */
+    /* Accept incoming client connection if waiting */
     if (!connected && srv_fd != INVALID_SOCK)
     {
         struct sockaddr_in caddr;
@@ -271,13 +375,16 @@ bool net_poll_input(float *tx, float *ty)
         if (fd != INVALID_SOCK)
         {
             set_nonblocking(fd);
+            set_tcp_nodelay(fd);
             cli_fd = fd;
             connected = true;
+            s_rx_len = 0;
+
             char ipbuf[64];
             inet_ntop(AF_INET, &caddr.sin_addr, ipbuf, sizeof(ipbuf));
-            TraceLog(LOG_INFO, "Client connected from %s", ipbuf);
+            TraceLog(LOG_INFO, "Client successfully connected from %s", ipbuf);
 
-            /* Send MSG_START so client knows we're rolling */
+            /* Send MSG_START handshake */
             Packet start;
             memset(&start, 0, sizeof(start));
             start.type = MSG_START;
@@ -290,7 +397,7 @@ bool net_poll_input(float *tx, float *ty)
 
     Packet p;
     memset(&p, 0, sizeof(p));
-    if (!recv_all(cli_fd, &p, sizeof(p)))
+    if (!recv_packet(cli_fd, &p))
         return false;
     if (p.type != MSG_INPUT)
         return false;
@@ -326,6 +433,12 @@ bool net_send_state(const GameState *g)
     p.last_scorer = (uint8_t)g->last_scorer;
     p.shake = g->shake;
 
+    p.ev_hit = g->ev_hit ? 1 : 0;
+    p.ev_wall = g->ev_wall ? 1 : 0;
+    p.ev_goal = g->ev_goal ? 1 : 0;
+    p.ev_hit_intensity = g->ev_hit_intensity;
+    p.ev_wall_intensity = g->ev_wall_intensity;
+
     return send_all(cli_fd, &p, sizeof(p));
 }
 
@@ -336,7 +449,7 @@ bool net_poll_state(GameState *g)
 
     Packet p;
     memset(&p, 0, sizeof(p));
-    if (!recv_all(cli_fd, &p, sizeof(p)))
+    if (!recv_packet(cli_fd, &p))
         return false;
     if (p.type != MSG_STATE)
         return false;
@@ -356,5 +469,12 @@ bool net_poll_state(GameState *g)
     g->goal_flash = p.goal_flash;
     g->last_scorer = p.last_scorer;
     g->shake = p.shake;
+
+    g->ev_hit = (p.ev_hit != 0);
+    g->ev_wall = (p.ev_wall != 0);
+    g->ev_goal = (p.ev_goal != 0);
+    g->ev_hit_intensity = p.ev_hit_intensity;
+    g->ev_wall_intensity = p.ev_wall_intensity;
+
     return true;
 }

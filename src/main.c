@@ -124,8 +124,9 @@ int main(void)
     int ta_best = 0;
     bool ta_active = false;
 
-    char join_ip[64] = "127.0.0.1";
-    int ip_len = 9;
+    char join_ip[64] = "";
+    int ip_len = 0;
+    char join_error[128] = "";
 
     UIScreenTransition trans;
     ui_trans_init(&trans);
@@ -190,6 +191,7 @@ int main(void)
                         TraceLog(LOG_ERROR, "Failed to host");
                     break;
                 case 3: /* Join */
+                    join_error[0] = '\0';
                     GO(SCREEN_JOIN_INPUT);
                     break;
                 case 4: /* Time Attack */
@@ -371,6 +373,21 @@ int main(void)
                 break;
             }
             {
+                /* Paste with CTRL+V or CMD+V */
+                if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ||
+                     IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER)) &&
+                    IsKeyPressed(KEY_V))
+                {
+                    const char *cb = GetClipboardText();
+                    if (cb && strlen(cb) > 0)
+                    {
+                        strncpy(join_ip, cb, sizeof(join_ip) - 1);
+                        join_ip[sizeof(join_ip) - 1] = '\0';
+                        ip_len = (int)strlen(join_ip);
+                        join_error[0] = '\0';
+                    }
+                }
+
                 int key = GetCharPressed();
                 while (key > 0)
                 {
@@ -378,29 +395,40 @@ int main(void)
                     {
                         join_ip[ip_len++] = (char)key;
                         join_ip[ip_len] = '\0';
+                        join_error[0] = '\0';
                     }
                     key = GetCharPressed();
                 }
                 if (IsKeyPressed(KEY_BACKSPACE) && ip_len > 0)
+                {
                     join_ip[--ip_len] = '\0';
+                    join_error[0] = '\0';
+                }
 
                 if (IsKeyPressed(KEY_ENTER))
                 {
-                    settings_apply(&settings);
-                    if (net_client_connect(join_ip))
+                    if (ip_len == 0)
                     {
-                        game_init(&game, MODE_CLIENT);
-                        powerup_init(&powerups);
-                        stats_init(&stats);
-                        particles_clear();
-                        heatmap_init(&heat);
-                        replay_init(&replay);
-                        demo_mode = false;
-                        GO(SCREEN_PLAYING);
+                        snprintf(join_error, sizeof(join_error), "Please enter a valid IP address!");
                     }
                     else
                     {
-                        TraceLog(LOG_ERROR, "Connect failed");
+                        settings_apply(&settings);
+                        if (net_client_connect(join_ip))
+                        {
+                            game_init(&game, MODE_CLIENT);
+                            powerup_init(&powerups);
+                            stats_init(&stats);
+                            particles_clear();
+                            heatmap_init(&heat);
+                            replay_init(&replay);
+                            demo_mode = false;
+                            GO(SCREEN_PLAYING);
+                        }
+                        else
+                        {
+                            snprintf(join_error, sizeof(join_error), "Failed to connect to %s! Check IP & Firewall.", join_ip);
+                        }
                     }
                 }
             }
@@ -566,9 +594,9 @@ int main(void)
             }
             else if (game.mode == MODE_CLIENT)
             {
-                float p1x, p1y;
-                input_get_local_target(&game, 1, &p1x, &p1y);
-                net_send_input(p1x, p1y);
+                float p2x, p2y;
+                input_get_local_target(&game, 2, &p2x, &p2y);
+                net_send_input(p2x, p2y);
                 while (net_poll_state(&game))
                 {
                 }
@@ -911,21 +939,53 @@ int main(void)
             break;
 
         case SCREEN_HOST_WAIT:
-            render_waiting_screen("Waiting for client...  Share your IP.");
+            render_host_wait_screen(net_get_local_ip());
             ui_back_button_draw();
             break;
 
         case SCREEN_JOIN_INPUT:
             ui_background();
-            ui_title("JOIN GAME", 0.3f);
-            ui_subtitle("Enter the host's IP address");
+            ui_title("JOIN LAN GAME", 0.3f);
+            ui_subtitle("Enter the host's IP address to connect");
             {
-                Rectangle panel = {FIELD_W / 2 - 220, 220, 440, 200};
+                Rectangle panel = {FIELD_W / 2 - 240, 200, 480, 280};
                 ui_panel(panel);
-                DrawText("Host IP:", FIELD_W / 2 - 180, 260, 22, UI_TEXT);
-                DrawText(join_ip, FIELD_W / 2 - 180, 300, 26, UI_SUCCESS);
+                DrawText("ENTER HOST IP ADDRESS:", FIELD_W / 2 - 200, 230, 18, UI_TEXT_DIM);
+
+                Rectangle box = {FIELD_W / 2 - 200, 260, 400, 50};
+                DrawRectangleRec(box, (Color){15, 25, 40, 255});
+                DrawRectangleLinesEx(box, 1.5f, UI_ACCENT);
+
+                if (ip_len == 0)
+                {
+                    DrawText("e.g. 192.168.1.50", (int)box.x + 15, (int)box.y + 12, 24, DARKGRAY);
+                }
+                else
+                {
+                    DrawText(join_ip, (int)box.x + 15, (int)box.y + 12, 26, UI_SUCCESS);
+                }
+
+                /* Blinking cursor */
+                if ((int)(GetTime() * 2.5f) % 2 == 0)
+                {
+                    int cw = MeasureText(join_ip, 26);
+                    DrawRectangle((int)box.x + 18 + cw, (int)box.y + 10, 3, 30, UI_ACCENT_HOT);
+                }
+
+                if (join_error[0] != '\0')
+                {
+                    DrawText(join_error, FIELD_W / 2 - 200, 325, 15, (Color){255, 90, 90, 255});
+                }
+                else
+                {
+                    DrawText("Port: 50505 (Ensure both laptops are on same Wi-Fi)",
+                             FIELD_W / 2 - 200, 325, 14, UI_TEXT_DARK);
+                }
+
+                DrawText("ENTER = Connect   CTRL+V = Paste   BACKSPACE = Delete",
+                         FIELD_W / 2 - 200, 380, 13, UI_TEXT_DIM);
             }
-            ui_hint("Type to enter   ENTER = connect   ESC = back");
+            ui_hint("Press ESC to return to menu");
             ui_back_button_draw();
             break;
 

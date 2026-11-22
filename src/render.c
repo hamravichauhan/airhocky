@@ -184,6 +184,32 @@ void render_waiting_screen(const char *msg)
     DrawCircle(30, 358, r, GREEN);
 }
 
+void render_host_wait_screen(const char *ip)
+{
+    ui_background();
+    ui_title("HOST LAN GAME", 0.3f);
+    ui_subtitle("Share this IP with the other player on your Wi-Fi");
+
+    Rectangle panel = {FIELD_W / 2 - 240, 200, 480, 280};
+    ui_panel(panel);
+
+    DrawText("YOUR HOST IP ADDRESS:", FIELD_W / 2 - 200, 230, 18, UI_TEXT_DIM);
+    DrawText(ip, FIELD_W / 2 - 200, 258, 36, UI_SUCCESS);
+
+    DrawText("PORT:", FIELD_W / 2 - 200, 315, 18, UI_TEXT_DIM);
+    DrawText("50505 (TCP)", FIELD_W / 2 - 200, 338, 22, RAYWHITE);
+
+    float t = GetTime();
+    int r = 7 + (int)(3 * (0.5f + 0.5f * sinf(t * 5.0f)));
+    DrawCircle(FIELD_W / 2 - 190, 412, r, UI_ACCENT_HOT);
+    DrawText("Waiting for client to connect...", FIELD_W / 2 - 170, 402, 20, UI_TEXT);
+
+    DrawText("Ensure both laptops are on same Wi-Fi / Hotspot",
+             FIELD_W / 2 - 200, 442, 14, UI_TEXT_DARK);
+
+    ui_hint("Press ESC to cancel hosting and return to menu");
+}
+
 void render_solo_difficulty(int hover)
 {
     (void)hover;
