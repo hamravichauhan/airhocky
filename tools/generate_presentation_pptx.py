@@ -281,7 +281,7 @@ def create_presentation():
             ("Tournament Mode (BO3 / BO5)", "Structured championship series in Best-of-3 or Best-of-5 formats with automated match progression."),
             ("Time Attack Challenge", "A 60-second high-score sprint against the clock to score maximum goals under pressure."),
             ("Bot vs. Bot Spectator Demo", "Automated exhibition match where two autonomous computer algorithms compete without human input."),
-            ("Interactive Settings Menu", "Configure winning score limits, puck speed, themes, and sound levels persisted to settings.dat.")
+            ("In-Game Navigation & Modal", "ESC / P hotkeys and on-screen HUD buttons summon an in-game modal with two-stage confirmation guards.")
         ],
         "The game offers 5 main play formats: single-player solo play, local two-player shared keyboard, cross-laptop LAN play, and multi-game tournaments."
     )
@@ -437,7 +437,7 @@ def create_presentation():
             ("24x32 Territorial Heatmap", "Tracks puck occupancy across a 2D spatial grid with exponential decay to visualize territory control."),
             ("Live Match Telemetry", "Monitors total rallies, hits, conversion efficiency, and peak recorded puck speed in real time."),
             ("Lifetime Disk Records (airhockey.dat)", "Saves all-time records (fastest shot ever, longest rally ever, matches played) permanently to disk."),
-            ("User Configuration (settings.dat)", "Persists winning score limits, speeds, and theme selections across game restarts.")
+            ("Binary Replay Export (replay.replay)", "Serializes 300-frame (5-second) circular buffer captures directly to disk with magic byte headers.")
         ],
         "Our graphics engine uses pre-allocated particle pools for goal confetti and impact sparks. It also tracks live match statistics like top shot speed and longest rally, saving your all-time records to disk."
     )

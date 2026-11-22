@@ -35,9 +35,10 @@ All media assets referenced in this script are organized and pre-rendered in you
   * `04_heatmap_overlay.png` (Heat density grid view)
   * `05_match_stats.png` (Post-match telemetry & records screen)
   * `06_time_attack.png` (Time Attack 60-second high-score results)
-  * `07_settings_menu.png` (Configuration sliders & toggles UI)
-  * `08_tournament_mode.png` (Best-of-3 / Best-of-5 tournament selector)
-  * `09_lan_join.png` (LAN multiplayer IP connection interface)
+  * `07_tournament_mode.png` (Best-of-3 / Best-of-5 tournament selector)
+  * `08_lan_join.png` (LAN multiplayer 4-digit room code join interface)
+  * `09_pause_modal.png` (In-game pause & navigation modal overlay)
+  * `10_pause_confirm.png` (Action confirmation dialog)
 
 ---
 
@@ -119,15 +120,15 @@ All media assets referenced in this script are organized and pre-rendered in you
 
 ---
 
-### [06:15 - 07:45] SECTION 5: Solo Mode Opponent Engine (`ai.c`, `stats.c`)
+### [06:15 - 07:45] SECTION 5: Solo Mode Opponent Engine (`solomode.c`, `stats.c`)
 * **Duration:** 1 Minute 30 Seconds
 * **On-Screen Visuals:**
   * **6:15 - 6:50:** Display of **Figure 3.4** (`diagrams/04_ai_state_machine.png`).
-  * **6:50 - 7:20:** Show `src/ai.c` adaptive habit tracking code (`ai_record_player_goal`).
+  * **6:50 - 7:20:** Show `src/solomode.c` adaptive habit tracking code (`ai_record_player_goal`).
   * **7:20 - 7:45:** Cut to `screenshots/05_match_stats.png` showing the post-game telemetry and records screen.
 
 > **Spoken Voiceover Script:**
-> *"In Solo Mode, we didn't want a dumb computer opponent that simply glued its X-coordinate to the puck. In `ai.c`, we designed a **Finite State Machine** with five distinct states:
+> *"In Solo Mode, we didn't want a dumb computer opponent that simply glued its X-coordinate to the puck. In `solomode.c`, we designed a **Finite State Machine** with five distinct states:
 > `DEFEND`, `INTERCEPT`, `ATTACK`, `STRIKE`, and `RESET`.*
 > 
 > *When defending, the AI stays in a protective arc. When the puck slows down near midfield, the AI transitions into attack mode, executes a realistic 20-pixel windup step backwards, and drives forward with an explosive strike.*
