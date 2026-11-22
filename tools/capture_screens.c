@@ -31,22 +31,27 @@ static void snap(const char *path)
 
 static void draw_hud(const char *theme_name, bool show_pause_modal)
 {
-    DrawRectangle(0, FIELD_H, FIELD_W, 120, (Color){10, 16, 26, 255});
-    DrawLine(0, FIELD_H, FIELD_W, FIELD_H, (Color){45, 75, 115, 200});
+    /* Scoreboard controls (inside y = 0 .. 100) */
+    Rectangle hud_pause_btn = {FIELD_W - 108, 16, 96, 30};
+    Rectangle hud_theme_btn = {12, 16, 96, 30};
 
-    Rectangle hud_btn = {FIELD_W - 145, FIELD_H + 10, 130, 34};
-    DrawText(TextFormat("Theme: %s (T)", theme_name), 16, FIELD_H + 18, 16, UI_ACCENT);
-    ui_button(hud_btn, show_pause_modal ? "RESUME (P)" : "PAUSE (P)", false);
+    ui_button(hud_theme_btn, theme_name, false);
+    ui_button(hud_pause_btn, show_pause_modal ? "RESUME (P)" : "PAUSE (P)", false);
 
-    DrawText("ESC / P : Pause & Menu   |   TAB : Heatmap   |   CTRL : Trajectory",
-             16, FIELD_H + 54, 14, UI_TEXT);
-    DrawText("V : Slow-Mo Replay   |   SHIFT : Spin   |   WASD / Arrows : Move",
-             16, FIELD_H + 80, 13, UI_TEXT_DIM);
+    const char *hints = "ESC: Pause   TAB: Heatmap   CTRL: Aim";
+    int htw = MeasureText(hints, 10);
+    DrawText(hints, FIELD_W / 2 - htw / 2, 78, 10, UI_TEXT_DIM);
+
+    /* Bottom strip below Player 1's goal (y = 905 .. 920) */
+    DrawLine(0, 905, FIELD_W, 905, (Color){30, 45, 65, 180});
+    const char *ctrl_hint = "WASD / Arrows: Move Paddle   |   SHIFT: Spin   |   V: Slow-Mo Replay";
+    int ctw = MeasureText(ctrl_hint, 10);
+    DrawText(ctrl_hint, FIELD_W / 2 - ctw / 2, 908, 10, UI_TEXT_DARK);
 
     if (show_pause_modal)
     {
         DrawRectangle(0, 0, FIELD_W, FIELD_H + 120, (Color){5, 10, 20, 215});
-        Rectangle modal_card = {FIELD_W / 2 - 170, FIELD_H / 2 - 130, 340, 240};
+        Rectangle modal_card = {FIELD_W / 2 - 170, 320, 340, 240};
         ui_panel(modal_card);
 
         const char *ptitle = "MATCH PAUSED";

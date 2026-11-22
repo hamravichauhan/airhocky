@@ -448,10 +448,18 @@ int main(void)
         {
             bool is_ta = (screen == SCREEN_TIME_ATTACK);
 
-            Rectangle hud_pause_btn = {FIELD_W - 145, FIELD_H + 10, 130, 34};
+            Rectangle hud_pause_btn = {FIELD_W - 108, 16, 96, 30};
+            Rectangle hud_theme_btn = {12, 16, 96, 30};
             Vector2 mouse_pos = GetMousePosition();
             bool hud_pause_click = CheckCollisionPointRec(mouse_pos, hud_pause_btn) &&
                                    IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+            bool hud_theme_click = CheckCollisionPointRec(mouse_pos, hud_theme_btn) &&
+                                   IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+            if (hud_theme_click && !game_paused && !demo_mode && !replay_is_active(&replay))
+            {
+                themes_next();
+            }
 
             if (demo_mode)
             {
@@ -473,7 +481,7 @@ int main(void)
 
             if (game_paused)
             {
-                Rectangle modal_card = {FIELD_W / 2 - 170, FIELD_H / 2 - 130, 340, 240};
+                Rectangle modal_card = {FIELD_W / 2 - 170, 320, 340, 240};
                 Rectangle btn_resume  = {FIELD_W / 2 - 140, modal_card.y + 65,  280, 42};
                 Rectangle btn_restart = {FIELD_W / 2 - 140, modal_card.y + 118, 280, 42};
                 Rectangle btn_quit    = {FIELD_W / 2 - 140, modal_card.y + 171, 280, 42};
@@ -1104,52 +1112,54 @@ int main(void)
                 render_time_attack_hud(ta_time_left, ta_score);
             render_replay_banner(replay_is_active(&replay), 0);
 
-            /* --- Bottom HUD Navigation Bar (y = 800 .. 920) --- */
-            DrawRectangle(0, FIELD_H, FIELD_W, 120, (Color){10, 16, 26, 255});
-            DrawLine(0, FIELD_H, FIELD_W, FIELD_H, (Color){45, 75, 115, 200});
-
-            Rectangle hud_btn = {FIELD_W - 145, FIELD_H + 10, 130, 34};
+            /* --- Top Scoreboard Controls (Inside y = 0 .. 100, never covering field or goal) --- */
+            Rectangle hud_pause_btn = {FIELD_W - 108, 16, 96, 30};
+            Rectangle hud_theme_btn = {12, 16, 96, 30};
             Vector2 m_pos = GetMousePosition();
-            bool hud_btn_hover = CheckCollisionPointRec(m_pos, hud_btn);
+            bool hud_pause_hover = CheckCollisionPointRec(m_pos, hud_pause_btn);
+            bool hud_theme_hover = CheckCollisionPointRec(m_pos, hud_theme_btn);
 
             if (demo_mode)
             {
-                DrawText("DEMO MODE ACTIVE", 16, FIELD_H + 18, 18, YELLOW);
-                ui_button(hud_btn, "EXIT (ESC)", hud_btn_hover);
-                DrawText("Press ESC or click EXIT to return to Main Menu",
-                         16, FIELD_H + 60, 14, UI_TEXT_DIM);
+                ui_button(hud_pause_btn, "EXIT (ESC)", hud_pause_hover);
+                const char *dtxt = "DEMO MODE (AI vs AI) - ESC to Exit";
+                int dtw = MeasureText(dtxt, 11);
+                DrawText(dtxt, FIELD_W / 2 - dtw / 2, 78, 11, YELLOW);
             }
             else if (replay_is_active(&replay))
             {
-                DrawText("SLOW-MO REPLAY ACTIVE (0.35x)", 16, FIELD_H + 18, 16, UI_ACCENT_HOT);
-                ui_button(hud_btn, "RESUME (P)", hud_btn_hover);
-                DrawText("V: Trigger Replay   |   F5: Save Replay File",
-                         16, FIELD_H + 60, 14, UI_TEXT);
+                ui_button(hud_pause_btn, "RESUME (P)", hud_pause_hover);
+                const char *rtxt = "SLOW-MO REPLAY (0.35x)";
+                int rtw = MeasureText(rtxt, 11);
+                DrawText(rtxt, FIELD_W / 2 - rtw / 2, 78, 11, UI_ACCENT_HOT);
             }
             else
             {
-                /* Row 1: Theme & Pause Button */
-                DrawText(TextFormat("Theme: %s (T)", themes_name(themes_current())),
-                         16, FIELD_H + 18, 16, UI_ACCENT);
+                /* Top-Left Theme toggle button */
+                ui_button(hud_theme_btn, themes_name(themes_current()), hud_theme_hover);
 
+                /* Top-Right Pause button */
                 const char *btn_lbl = game_paused ? "RESUME (P)" : "PAUSE (P)";
-                ui_button(hud_btn, btn_lbl, hud_btn_hover);
+                ui_button(hud_pause_btn, btn_lbl, hud_pause_hover);
 
-                /* Row 2: In-Game Shortcuts */
-                DrawText("ESC / P : Pause & Menu   |   TAB : Heatmap   |   CTRL : Trajectory",
-                         16, FIELD_H + 54, 14, UI_TEXT);
-
-                /* Row 3: Movement & Action Controls */
-                DrawText("V : Slow-Mo Replay   |   SHIFT : Spin   |   WASD / Arrows : Move",
-                         16, FIELD_H + 80, 13, UI_TEXT_DIM);
+                /* Top-Center subtle shortcut hint at y = 78 (between P1 and P2 scores) */
+                const char *hints = "ESC: Pause   TAB: Heatmap   CTRL: Aim";
+                int htw = MeasureText(hints, 10);
+                DrawText(hints, FIELD_W / 2 - htw / 2, 78, 10, UI_TEXT_DIM);
             }
+
+            /* --- Bottom Margin Status Strip (y = 907 .. 920, strictly BELOW Player 1's goal) --- */
+            DrawLine(0, 905, FIELD_W, 905, (Color){30, 45, 65, 180});
+            const char *ctrl_hint = "WASD / Arrows: Move Paddle   |   SHIFT: Spin   |   V: Slow-Mo Replay";
+            int ctw = MeasureText(ctrl_hint, 10);
+            DrawText(ctrl_hint, FIELD_W / 2 - ctw / 2, 908, 10, UI_TEXT_DARK);
 
             /* --- Pause Modal Overlay --- */
             if (game_paused)
             {
                 DrawRectangle(0, 0, FIELD_W, FIELD_H + 120, (Color){5, 10, 20, 215});
 
-                Rectangle modal_card = {FIELD_W / 2 - 170, FIELD_H / 2 - 130, 340, 240};
+                Rectangle modal_card = {FIELD_W / 2 - 170, 320, 340, 240};
                 ui_panel(modal_card);
 
                 const char *ptitle = "MATCH PAUSED";
