@@ -1,14 +1,13 @@
 #include "raylib.h"
 #include "game.h"
 #include "render.h"
-#include "ai.h"
+#include "solomode.h"
 #include "particles.h"
 #include "powerup.h"
 #include "stats.h"
 #include "heatmap.h"
 #include "themes.h"
 #include "trajectory.h"
-#include "commentary.h"
 #include "replay.h"
 #include "settings.h"
 #include <stdio.h>
@@ -64,9 +63,6 @@ static void record_sequence(const char *filename, int total_frames,
     heatmap_init(&heat);
     heat.visible = show_heatmap;
 
-    Commentary commentary;
-    commentary_init(&commentary);
-
     Replay replay;
     replay_init(&replay);
 
@@ -109,7 +105,6 @@ static void record_sequence(const char *filename, int total_frames,
 
         particles_update(dt);
         stats_update(&stats, &game, dt);
-        commentary_update(&commentary, dt);
         powerup_update(&powerups, &game, dt, 1);
         heatmap_record(&heat, game.puck.x, game.puck.y);
         replay_record(&replay, &game);
@@ -119,15 +114,10 @@ static void record_sequence(const char *filename, int total_frames,
             particles_emit_spark((Vector2){game.puck.x, game.puck.y},
                                  (Vector2){game.ev_hit_dir_x, game.ev_hit_dir_y},
                                  game.ev_hit_intensity);
-            if (game.ev_hit_intensity > 0.7f)
-                commentary_trigger(&commentary, CMT_POWER_SHOT);
-            else if (stats.current_rally == 10)
-                commentary_trigger(&commentary, CMT_RALLY_10);
         }
         if (game.ev_goal)
         {
             particles_emit_goal((Vector2){game.puck.x, game.puck.y}, RED);
-            commentary_trigger(&commentary, CMT_INSANE);
         }
 
         BeginDrawing();
@@ -147,7 +137,6 @@ static void record_sequence(const char *filename, int total_frames,
         particles_draw(100);
         powerup_draw(&powerups, 100);
         render_combo_overlay(&stats);
-        commentary_draw(&commentary, 100);
 
         if (trigger_replay && frame > 180 && frame < 320)
         {

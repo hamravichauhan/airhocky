@@ -4,7 +4,7 @@
 #include "render.h"
 #include "input.h"
 #include "net.h"
-#include "ai.h"
+#include "solomode.h"
 #include "particles.h"
 #include "powerup.h"
 #include "stats.h"
@@ -14,7 +14,6 @@
 #include "trajectory.h"
 #include "dynaudio.h"
 #include "tournament.h"
-#include "coach.h"
 #include "replay.h"
 #include "settings.h"
 #include "settings_ui.h"
@@ -37,7 +36,6 @@ typedef enum
     SCREEN_TIME_ATTACK,
     SCREEN_TIME_ATTACK_OVER,
     SCREEN_TOURNAMENT_DIFF,
-    SCREEN_COACH,
     SCREEN_REPLAY_LOADED,
     SCREEN_SETTINGS
 } Screen;
@@ -99,9 +97,6 @@ int main(void)
     Tournament tour;
     memset(&tour, 0, sizeof(tour));
     bool in_tournament = false;
-
-    CoachReport coach;
-    coach_clear(&coach);
 
     Replay replay;
     replay_init(&replay);
@@ -861,27 +856,6 @@ int main(void)
             break;
         }
 
-        case SCREEN_COACH:
-            if (ui_back_button_input())
-            {
-                GO(SCREEN_MENU);
-                menu_sel = 0;
-                break;
-            }
-            if (IsKeyPressed(KEY_R))
-            {
-                settings_apply(&settings);
-                game_init(&game, MODE_SOLO);
-                ai_init(&ai, ai_from_settings(&settings));
-                powerup_init(&powerups);
-                stats_init(&stats);
-                particles_clear();
-                heatmap_init(&heat);
-                replay_init(&replay);
-                GO(SCREEN_PLAYING);
-            }
-            break;
-
         case SCREEN_TIME_ATTACK_OVER:
             if (ui_back_button_input())
             {
@@ -1168,14 +1142,6 @@ int main(void)
             render_time_attack_results(ta_score, ta_best);
             ui_back_button_draw();
             break;
-
-        case SCREEN_COACH:
-        {
-            int winner = (stats.goals_p1 > stats.goals_p2) ? 1 : 2;
-            render_coach_screen(&coach, winner);
-            ui_back_button_draw();
-            break;
-        }
 
         case SCREEN_STATS:
         {

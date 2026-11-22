@@ -1,4 +1,4 @@
-#include "ai.h"
+#include "solomode.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

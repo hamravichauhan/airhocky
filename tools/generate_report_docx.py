@@ -154,7 +154,7 @@ def build_report():
         ["MCA-2026-01", "Team Member 1 (Lead)", "Network & Systems Architect", "main.c, net.c, protocol.h, features.h"],
         ["MCA-2026-02", "Team Member 2", "Physics & Simulation Engineer", "game.c, trajectory.c, input.c"],
         ["MCA-2026-03", "Team Member 3", "Graphics & Audio DSP Engineer", "render.c, audio.c, dynaudio.c, particles.c"],
-        ["MCA-2026-04", "Team Member 4", "AI & Data Systems Engineer", "ai.c, replay.c, stats.c, heatmap.c, settings.c"]
+        ["MCA-2026-04", "Team Member 4", "Solo Mode & Data Systems Engineer", "solomode.c, replay.c, stats.c, heatmap.c, settings.c"]
     ]
     for r_idx, row_data in enumerate(data, start=1):
         for c_idx, val in enumerate(row_data):
@@ -343,8 +343,8 @@ def build_report():
          "are transferred. src/protocol.h defines the Packet struct with message types (MSG_HELLO, MSG_START, MSG_INPUT, MSG_STATE, MSG_BYE). The Host acts "
          "as the authoritative server, accepting client inputs and broadcasting complete world snapshots."),
 
-        ("4.4 Solo Mode Opponent Engine (src/ai.c)",
-         "src/ai.c implements the Solo Mode autonomous opponent using a 5-state FSM (DEFEND, INTERCEPT, ATTACK, STRIKE, RESET). It features difficulty knobs for reaction delay, "
+        ("4.4 Solo Mode Opponent Engine (src/solomode.c)",
+         "src/solomode.c implements the Solo Mode autonomous opponent using a 5-state FSM (DEFEND, INTERCEPT, ATTACK, STRIKE, RESET). It features difficulty knobs for reaction delay, "
          "prediction quality, speed caps, and positional jitter. When attacking, it performs a realistic windup step backwards before driving forward at an angle toward "
          "the player's goal. It adapts to player scoring habits by recording player goal zones and dynamically adjusting its defensive resting stance."),
 

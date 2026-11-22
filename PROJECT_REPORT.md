@@ -18,7 +18,7 @@
 | **MCA-2026-01** | Team Member 1 (Lead) | **Network & Systems Architect** | `main.c`, `net.c`, `protocol.h`, `features.h` |
 | **MCA-2026-02** | Team Member 2 | **Physics & Simulation Engineer** | `game.c`, `trajectory.c`, `input.c` |
 | **MCA-2026-03** | Team Member 3 | **Graphics & Audio DSP Engineer** | `render.c`, `audio.c`, `dynaudio.c`, `particles.c` |
-| **MCA-2026-04** | Team Member 4 | **AI & Data Systems Engineer**| `ai.c`, `replay.c`, `stats.c`, `heatmap.c`, `settings.c` |
+| **MCA-2026-04** | Team Member 4 | **Solo Mode & Data Systems Engineer**| `solomode.c`, `replay.c`, `stats.c`, `heatmap.c`, `settings.c` |
 
 **Under the Guidance of:**  
 *[Faculty Guide / Department Professor Name]*  
@@ -128,8 +128,8 @@ The project consists of 22 pairs of C source (`.c`) and header (`.h`) files tota
 ### 4.3 Non-Blocking Cross-Platform Network Layer (`src/net.c`, `src/protocol.h`)
 `src/net.c` implements real-time LAN communication using low-level cross-platform TCP sockets on port `50505` (POSIX sockets on Linux/macOS and Winsock2 on Windows). It uses non-blocking I/O (`fcntl` on POSIX, `ioctlsocket` on Windows) to ensure network I/O never blocks the frame loop. Custom `send_all()` and `recv_all()` loops handle TCP stream fragmentation, looping until full byte buffers are transferred. `src/protocol.h` defines the `Packet` struct with message types (`MSG_HELLO`, `MSG_START`, `MSG_INPUT`, `MSG_STATE`, `MSG_BYE`). The Host acts as the authoritative server, accepting client inputs and broadcasting complete world snapshots.
 
-### 4.4 Solo Mode Opponent Engine (`src/ai.c`)
-`src/ai.c` implements the Solo Mode autonomous opponent using a 5-state FSM (`DEFEND`, `INTERCEPT`, `ATTACK`, `STRIKE`, `RESET`). It features difficulty knobs for reaction delay, prediction quality, speed caps, and positional jitter. When attacking, it performs a realistic windup step backwards before driving forward at an angle toward the player's goal. It adapts to player scoring habits by recording player goal zones and dynamically adjusting its defensive resting stance.
+### 4.4 Solo Mode Opponent Engine (`src/solomode.c`)
+`src/solomode.c` implements the Solo Mode autonomous opponent using a 5-state FSM (`DEFEND`, `INTERCEPT`, `ATTACK`, `STRIKE`, `RESET`). It features difficulty knobs for reaction delay, prediction quality, speed caps, and positional jitter. When attacking, it performs a realistic windup step backwards before driving forward at an angle toward the player's goal. It adapts to player scoring habits by recording player goal zones and dynamically adjusting its defensive resting stance.
 
 ### 4.5 Procedural Audio & Dynamic Tension (`src/audio.c`, `src/dynaudio.c`)
 `src/audio.c` contains a mathematical audio synthesizer that creates 44.1 kHz, 16-bit PCM sound buffers in memory without requiring external `.wav` or `.mp3` files. Paddle hits, wall thuds, countdown ticks, and fanfare are synthesized using combinations of sine waves, white noise generators, and exponential decay envelopes. Collision impulse dynamically modulates sound volume and pitch. `src/dynaudio.c` smoothly ramps audio tension based on current rally length and game pace.

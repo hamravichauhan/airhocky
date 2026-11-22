@@ -317,7 +317,7 @@ def create_presentation():
         [
             ("1. Physics Engine (game.c)", "Responsible for paddle acceleration, table boundaries, elastic collisions, and puck kinematics."),
             ("2. LAN Networking (net.c)", "Handles socket creation, non-blocking packet transfer, and Host-Authoritative synchronization."),
-            ("3. Solo Opponent Engine (ai.c)", "Controls the autonomous opponent using a 5-state finite state machine with habit adaptation."),
+            ("3. Solo Opponent Engine (solomode.c)", "Controls the autonomous opponent using a 5-state finite state machine with habit adaptation."),
             ("4. Procedural Audio DSP (audio.c)", "Generates raw 44.1 kHz PCM audio waveforms directly in RAM without using audio files."),
             ("5. Rendering & UI (render.c, ui.c)", "Renders 2D OpenGL graphics, UI menus, and coordinates the 512-particle memory pool.")
         ],
@@ -379,7 +379,7 @@ def create_presentation():
     add_two_column_slide(
         9,
         "Module 3: Solo Opponent / AI (How It Works Overall)",
-        "Solo Mode Engine (ai.c)",
+        "Solo Mode Engine (solomode.c)",
         "5 Behavioral States (Finite State Machine)",
         [
             ("1. Defending", "Patrols in a protective curved arc in front of the goal whenever the puck is on the player's side."),

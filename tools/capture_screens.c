@@ -7,7 +7,6 @@
 #include "powerup.h"
 #include "trajectory.h"
 #include "stats.h"
-#include "coach.h"
 #include "settings.h"
 #include "settings_ui.h"
 #include "tournament.h"
@@ -139,9 +138,6 @@ int main(void)
     for (int i = 0; i < 200; i++) {
         heatmap_record(&heat, 200 + (i * 13) % 200, 300 + (i * 17) % 350);
     }
-
-    CoachReport coach;
-    coach_analyze(&coach, &stats, 1);
 
     Tournament tour;
     tournament_init(&tour, TOUR_BO3);

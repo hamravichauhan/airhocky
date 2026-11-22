@@ -8,7 +8,6 @@
 #include "stats.h"
 #include "themes.h"
 #include "tournament.h"
-#include "coach.h"
 #include "ui.h"
 
 void render_init(void) {}
@@ -464,96 +463,6 @@ void render_tournament_hud(const Tournament *t)
     snprintf(buf, sizeof buf, "MATCH %d", t->current_match);
     DrawText(buf, FIELD_W / 2 - MeasureText(buf, 12) / 2,
              cy - 6, 12, (Color){160, 180, 200, 150});
-}
-
-/* ------- AI coach ------- */
-
-void render_coach_screen(const CoachReport *rep, int winner)
-{
-    DrawRectangleGradientV(0, 0, FIELD_W, FIELD_H + 120,
-                           (Color){10, 20, 40, 255},
-                           (Color){4, 10, 20, 255});
-
-    const char *title = "AI COACH ANALYSIS";
-    int tw = MeasureText(title, 34);
-    DrawText(title, FIELD_W / 2 - tw / 2, 40, 34,
-             (Color){180, 220, 255, 255});
-
-    const char *sub = (winner == 1) ? "You won!" : "You lost.";
-    int sw = MeasureText(sub, 24);
-    Color sc = (winner == 1) ? GREEN : RED;
-    DrawText(sub, FIELD_W / 2 - sw / 2, 90, 24, sc);
-
-    if (!rep->valid || rep->count == 0)
-    {
-        DrawText("Not enough data for analysis.",
-                 FIELD_W / 2 - MeasureText("Not enough data for analysis.", 20) / 2,
-                 300, 20, LIGHTGRAY);
-    }
-    else
-    {
-        int y = 150;
-        for (int i = 0; i < rep->count; i++)
-        {
-            DrawCircle(45, y + 10, 5, YELLOW);
-            const char *line = rep->tips[i];
-            int fs = 18;
-            int max_w = FIELD_W - 80;
-
-            char buf[256];
-            strncpy(buf, line, sizeof buf - 1);
-            buf[sizeof buf - 1] = '\0';
-
-            char *p = buf;
-            char cur_line[128];
-            cur_line[0] = '\0';
-            int cur_len = 0;
-            int cy = y;
-
-            while (*p)
-            {
-                while (*p == ' ')
-                    p++;
-                char word[64];
-                int wi = 0;
-                while (*p && *p != ' ' && wi < 63)
-                    word[wi++] = *p++;
-                word[wi] = '\0';
-                if (wi == 0)
-                    break;
-
-                char test[192];
-                snprintf(test, sizeof test, "%s%s%s",
-                         cur_line, cur_len ? " " : "", word);
-
-                if (MeasureText(test, fs) > max_w)
-                {
-                    DrawText(cur_line, 70, cy, fs, RAYWHITE);
-                    cy += fs + 4;
-                    strncpy(cur_line, word, sizeof cur_line - 1);
-                    cur_line[sizeof cur_line - 1] = '\0';
-                    cur_len = 1;
-                }
-                else
-                {
-                    strncpy(cur_line, test, sizeof cur_line - 1);
-                    cur_line[sizeof cur_line - 1] = '\0';
-                    cur_len = 1;
-                }
-            }
-            if (cur_len)
-            {
-                DrawText(cur_line, 70, cy, fs, RAYWHITE);
-                cy += fs + 4;
-            }
-
-            y = cy + 20;
-        }
-    }
-
-    DrawText("ENTER = menu    R = rematch",
-             FIELD_W / 2 - MeasureText("ENTER = menu    R = rematch", 20) / 2,
-             FIELD_H + 40, 20, LIGHTGRAY);
 }
 
 void render_replay_banner(bool is_replay, int frames_left)
