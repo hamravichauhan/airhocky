@@ -30,7 +30,6 @@ SRC = src/main.c src/game.c src/render.c src/input.c src/net.c src/solomode.c \
       src/heatmap.c src/themes.c src/trajectory.c \
       src/dynaudio.c \
       src/tournament.c src/replay.c \
-      src/settings.c src/settings_ui.c \
       src/ui.c src/ui_transition.c
 
 all: $(BIN)

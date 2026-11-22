@@ -154,7 +154,7 @@ def build_report():
         ["MCA-2026-01", "Team Member 1 (Lead)", "Network & Systems Architect", "main.c, net.c, protocol.h, features.h"],
         ["MCA-2026-02", "Team Member 2", "Physics & Simulation Engineer", "game.c, trajectory.c, input.c"],
         ["MCA-2026-03", "Team Member 3", "Graphics & Audio DSP Engineer", "render.c, audio.c, dynaudio.c, particles.c"],
-        ["MCA-2026-04", "Team Member 4", "Solo Mode & Data Systems Engineer", "solomode.c, replay.c, stats.c, heatmap.c, settings.c"]
+        ["MCA-2026-04", "Team Member 4", "Solo Mode & Data Systems Engineer", "solomode.c, replay.c, stats.c, heatmap.c"]
     ]
     for r_idx, row_data in enumerate(data, start=1):
         for c_idx, val in enumerate(row_data):
@@ -364,10 +364,10 @@ def build_report():
          "src/replay.c maintains a 300-frame circular ring buffer (5 seconds at 60 FPS) enabling instant slow-motion goal replays (V key) and disk export (F5). "
          "src/tournament.c manages Best-of-3 and Best-of-5 competitive tournament series tracking."),
 
-        ("4.8 Settings & Data Persistence (src/settings.c, src/settings_ui.c, src/stats.c)",
-         "src/settings.c handles serialization and deserialization of match parameters (win score limit, puck/paddle speeds, theme, volume) to settings.dat. "
-         "src/settings_ui.c renders the interactive settings menu with sliders and toggle buttons. src/stats.c monitors real-time match metrics "
-         "(rallies, hit accuracy, hype meter) and persists lifetime high scores (fastest puck ever, longest rally) into airhockey.dat.")
+        ("4.8 Telemetry & High-Score Persistence (src/stats.c)",
+         "src/stats.c monitors real-time match telemetry (rallies, hit conversion accuracy, top puck velocity, hype meter) "
+         "and handles binary struct serialization to airhockey.dat. It persists all-time hall-of-fame records "
+         "(longest rally, fastest recorded puck shot, maximum goals, lifetime matches) across game restarts with robust fopen/fread/fwrite error validation.")
     ]
 
     for title, desc in modules_deep:
@@ -385,26 +385,24 @@ def build_report():
 
     screens = [
         ("01_main_menu.png", "Figure 5.1: Main Menu & Navigation Interface",
-         "The main menu screen rendered at 60 FPS in raylib, providing seamless keyboard and mouse navigation across 9 menu options (Solo Mode, Local 2-Player, Host LAN, Join LAN, Time Attack, Tournament, AI vs AI Demo, Settings, and Quit)."),
+         "The main menu screen rendered at 60 FPS in raylib, providing seamless keyboard and mouse navigation across 8 streamlined game modes (Solo Mode, Local 2-Player, Host LAN, Join LAN, Time Attack, Tournament, AI vs AI Demo, and Quit)."),
         ("02_gameplay_neon.png", "Figure 5.2: Real-Time Gameplay (Neon Theme)",
          "Active match rendering with the high-contrast Neon theme. Demonstrates Player 1 (blue paddle), Player 2 (red paddle), high-speed puck motion, active power-up collectible drops, score counter (3-2), and impact spark particles."),
         ("03_trajectory_prediction.png", "Figure 5.3: Predictive Trajectory Raycasting Engine",
-         "Demonstrates the real-time trajectory engine (toggled via CTRL) projecting the puck's bank reflections up to 3 seconds into the future using forward raycasting and cushion normal calculations."),
+         "Demonstrates the real-time trajectory engine (toggled via CTRL / C) projecting the puck's bank reflections up to 3 seconds into the future using forward raycasting and cushion normal calculations."),
         ("04_heatmap_overlay.png", "Figure 5.4: Territorial Puck Heatmap Density Grid",
          "Real-time analytical heatmap overlay (toggled via TAB). Visualizes a 24x32 grid tracking puck presence density across the rink with exponential decay, revealing offensive and defensive territory control."),
         ("05_match_stats.png", "Figure 5.5: Post-Match Statistics & All-Time Records",
          "Comprehensive post-game telemetry screen displaying rally counters, hit-to-goal conversion accuracy, top recorded puck velocity (1120 px/s), and lifetime high-score records loaded from airhockey.dat."),
         ("06_time_attack.png", "Figure 5.6: Time Attack Challenge Results Screen",
          "Summary screen for the 60-second Time Attack high-score mode. Displays goals scored against the clock, all-time record comparison, and triggers celebratory 'NEW RECORD!' banner notifications."),
-        ("07_settings_menu.png", "Figure 5.7: Interactive Configuration & Settings UI",
-         "Interactive settings screen allowing players to configure winning goal limits, puck/paddle velocity multipliers, power-up spawn intervals, visual themes, and sound volume, serialized to settings.dat."),
-        ("08_tournament_mode.png", "Figure 5.8: Tournament Format Selection (Best-of-3 / Best-of-5)",
+        ("07_tournament_mode.png", "Figure 5.7: Tournament Format Selection (Best-of-3 / Best-of-5)",
          "Competitive tournament bracket selector enabling multi-match series play with persistent series score tracking and automated championship verification."),
-        ("09_lan_join.png", "Figure 5.9: LAN Multiplayer 4-Digit Room Code Join Interface",
+        ("08_lan_join.png", "Figure 5.8: LAN Multiplayer 4-Digit Room Code Join Interface",
          "The modernized LAN join screen featuring automatic local UDP room beacon discovery and 4-digit Room Code pairing. Eliminates manual IP typing while preserving low-level host-authoritative TCP socket synchronization."),
-        ("10_pause_modal.png", "Figure 5.10: In-Game Pause & Navigation Modal Overlay",
+        ("09_pause_modal.png", "Figure 5.9: In-Game Pause & Navigation Modal Overlay",
          "The in-game pause system triggered seamlessly via ESC, P, or the on-screen HUD button. Displays a centered modal dialog enabling players to Resume Match, Restart Match, or safely Quit to the Main Menu while instantly freezing physics integration and countdown timers."),
-        ("11_pause_confirm.png", "Figure 5.11: Action Confirmation Dialog (Restart / Quit Safety Guard)",
+        ("10_pause_confirm.png", "Figure 5.10: Action Confirmation Dialog (Restart / Quit Safety Guard)",
          "Two-stage safety confirmation modal preventing accidental match termination. Prompting players to confirm with explicit YES / CANCEL buttons (or ENTER / ESC / Y / N hotkeys) before resetting score progress or returning to the main menu.")
     ]
 
@@ -469,27 +467,20 @@ def build_report():
     code_run.font.color.rgb = RGBColor(30, 41, 59)
 
     add_heading_styled(doc, "6.2 Persistent Disk File Samples", level=2)
-    doc.add_paragraph("Sample contents of configuration and lifetime records files:")
+    doc.add_paragraph("Sample contents of lifetime hall-of-fame records and binary replay capture files:")
     p_dat = doc.add_paragraph()
     p_dat_run = p_dat.add_run(
-        "File: settings.dat (Plaintext configuration):\n"
-        "  7      <- win_score (goals needed to win)\n"
-        "  1      <- rounds (number of games in series)\n"
-        "  0.00   <- round_time_limit (0 = disabled)\n"
-        "  1      <- puck_speed (SPEED_NORMAL)\n"
-        "  1      <- paddle_speed (SPEED_NORMAL)\n"
-        "  2      <- powerups (POWERUP_NORMAL)\n"
-        "  1      <- table_size (SIZE_NORMAL)\n"
-        "  1      <- ai_difficulty (AI_MEDIUM)\n"
-        "  0      <- theme_idx (THEME_NEON)\n"
-        "  80     <- volume (80%)\n"
-        "  1      <- sound_on (enabled)\n\n"
-        "File: airhockey.dat (All-time records):\n"
+        "File: airhockey.dat (All-time hall-of-fame records):\n"
         "  26     <- best_rally_ever (longest volley)\n"
         "  1380.0 <- fastest_puck_ever (px/s)\n"
         "  7      <- most_goals_p1_ever\n"
         "  7      <- most_goals_p2_ever\n"
-        "  42     <- matches_played (lifetime matches)"
+        "  42     <- matches_played (lifetime matches count)\n\n"
+        "File: replay.replay (Binary circular frame buffer export):\n"
+        "  [0x00..0x03] uint32_t magic = 0x41484B59 ('AHKY')\n"
+        "  [0x04..0x07] uint32_t count = 300 frames (5.0s circular buffer)\n"
+        "  [0x08..0x1B] Frame 0 payload (p1x, p1y, p2x, p2y, puck_x, puck_y, spin)\n"
+        "  ... 300 sequential telemetry frames at 60 FPS ..."
     )
     p_dat_run.font.name = 'Courier New'
     p_dat_run.font.size = Pt(8.5)

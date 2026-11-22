@@ -15,8 +15,6 @@
 #include "dynaudio.h"
 #include "tournament.h"
 #include "replay.h"
-#include "settings.h"
-#include "settings_ui.h"
 #include "ui.h"
 #include "ui_transition.h"
 #include <stdio.h>
@@ -36,22 +34,10 @@ typedef enum
     SCREEN_TIME_ATTACK,
     SCREEN_TIME_ATTACK_OVER,
     SCREEN_TOURNAMENT_DIFF,
-    SCREEN_REPLAY_LOADED,
-    SCREEN_SETTINGS
+    SCREEN_REPLAY_LOADED
 } Screen;
 
-static AIDifficulty ai_from_settings(const GameSettings *s)
-{
-    switch (s->ai_difficulty)
-    {
-    case 0:
-        return AI_EASY;
-    case 2:
-        return AI_HARD;
-    default:
-        return AI_MEDIUM;
-    }
-}
+static AIDifficulty current_ai_diff = AI_MEDIUM;
 
 int main(void)
 {
@@ -65,13 +51,9 @@ int main(void)
     particles_init();
     themes_init();
 
-    GameSettings settings;
-    settings_load(&settings);
-    settings_apply(&settings);
-
     Screen screen = SCREEN_MENU;
     int menu_sel = 0;
-    const int menu_n = 9;
+    const int menu_n = 8;
 
     GameState game;
     memset(&game, 0, sizeof(game));
@@ -191,7 +173,6 @@ int main(void)
                     GO(SCREEN_SOLO_DIFF);
                     break;
                 case 1: /* Local */
-                    settings_apply(&settings);
                     game_init(&game, MODE_LOCAL);
                     powerup_init(&powerups);
                     stats_init(&stats);
@@ -203,7 +184,6 @@ int main(void)
                     GO(SCREEN_PLAYING);
                     break;
                 case 2: /* Host */
-                    settings_apply(&settings);
                     if (net_host_start())
                         GO(SCREEN_HOST_WAIT);
                     else
@@ -217,9 +197,8 @@ int main(void)
                     GO(SCREEN_JOIN_INPUT);
                     break;
                 case 4: /* Time Attack */
-                    settings_apply(&settings);
                     game_init(&game, MODE_SOLO);
-                    ai_init(&ai, ai_from_settings(&settings));
+                    ai_init(&ai, AI_MEDIUM);
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
@@ -233,13 +212,11 @@ int main(void)
                     GO(SCREEN_TIME_ATTACK);
                     break;
                 case 5: /* Tournament */
-                    settings_apply(&settings);
                     GO(SCREEN_TOURNAMENT_DIFF);
                     break;
                 case 6: /* AI vs AI Demo */
-                    settings_apply(&settings);
                     game_init(&game, MODE_SOLO);
-                    ai_init(&ai, ai_from_settings(&settings));
+                    ai_init(&ai, AI_HARD);
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
@@ -249,10 +226,7 @@ int main(void)
                     demo_mode = true;
                     GO(SCREEN_PLAYING);
                     break;
-                case 7: /* Settings */
-                    GO(SCREEN_SETTINGS);
-                    break;
-                case 8: /* Quit */
+                case 7: /* Quit */
                     audio_close();
                     CloseAudioDevice();
                     CloseWindow();
@@ -261,24 +235,6 @@ int main(void)
             }
             break;
         }
-
-        case SCREEN_SETTINGS:
-            if (ui_back_button_input())
-            {
-                settings_save(&settings);
-                settings_apply(&settings);
-                toast_timer = 1.5f;
-                GO(SCREEN_MENU);
-                menu_sel = 7;
-                break;
-            }
-            if (settings_ui_update(&settings))
-            {
-                toast_timer = 1.5f;
-                GO(SCREEN_MENU);
-                menu_sel = 7;
-            }
-            break;
 
         case SCREEN_TOURNAMENT_DIFF:
         {
@@ -297,7 +253,6 @@ int main(void)
             {
                 tournament_init(&tour, TOUR_BO3);
                 in_tournament = true;
-                settings_apply(&settings);
                 game_init(&game, MODE_LOCAL);
                 powerup_init(&powerups);
                 stats_init(&stats);
@@ -312,7 +267,6 @@ int main(void)
             {
                 tournament_init(&tour, TOUR_BO5);
                 in_tournament = true;
-                settings_apply(&settings);
                 game_init(&game, MODE_LOCAL);
                 powerup_init(&powerups);
                 stats_init(&stats);
@@ -343,8 +297,9 @@ int main(void)
 
             if (IsKeyPressed(KEY_ONE) || IsKeyPressed(KEY_KP_1) || click_e)
             {
+                current_ai_diff = AI_EASY;
                 game_init(&game, MODE_SOLO);
-                ai_init(&ai, AI_EASY);
+                ai_init(&ai, current_ai_diff);
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
@@ -356,8 +311,9 @@ int main(void)
             }
             if (IsKeyPressed(KEY_TWO) || IsKeyPressed(KEY_KP_2) || click_m)
             {
+                current_ai_diff = AI_MEDIUM;
                 game_init(&game, MODE_SOLO);
-                ai_init(&ai, AI_MEDIUM);
+                ai_init(&ai, current_ai_diff);
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
@@ -369,8 +325,9 @@ int main(void)
             }
             if (IsKeyPressed(KEY_THREE) || IsKeyPressed(KEY_KP_3) || click_h)
             {
+                current_ai_diff = AI_HARD;
                 game_init(&game, MODE_SOLO);
-                ai_init(&ai, AI_HARD);
+                ai_init(&ai, current_ai_diff);
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
@@ -457,7 +414,6 @@ int main(void)
                     }
                     else
                     {
-                        settings_apply(&settings);
                         if (net_client_connect(target_ip))
                         {
                             net_discovery_stop();
@@ -564,11 +520,10 @@ int main(void)
                     {
                         game_paused = false;
                         pause_confirm = 0;
-                        settings_apply(&settings);
                         if (is_ta)
                         {
                             game_init(&game, MODE_SOLO);
-                            ai_init(&ai, ai_from_settings(&settings));
+                            ai_init(&ai, AI_MEDIUM);
                             powerup_init(&powerups);
                             stats_init(&stats);
                             particles_clear();
@@ -583,7 +538,7 @@ int main(void)
                             int cur_mode = game.mode;
                             game_init(&game, cur_mode);
                             if (cur_mode == MODE_SOLO)
-                                ai_init(&ai, ai_from_settings(&settings));
+                                ai_init(&ai, current_ai_diff);
                             powerup_init(&powerups);
                             stats_init(&stats);
                             particles_clear();
@@ -962,7 +917,6 @@ int main(void)
                     }
                     else
                     {
-                        settings_apply(&settings);
                         game_init(&game, MODE_LOCAL);
                         powerup_init(&powerups);
                         stats_init(&stats);
@@ -1031,9 +985,8 @@ int main(void)
             }
             if (IsKeyPressed(KEY_R))
             {
-                settings_apply(&settings);
                 game_init(&game, MODE_SOLO);
-                ai_init(&ai, ai_from_settings(&settings));
+                ai_init(&ai, AI_MEDIUM);
                 powerup_init(&powerups);
                 stats_init(&stats);
                 particles_clear();
@@ -1060,7 +1013,6 @@ int main(void)
                 net_close();
                 if (game.mode == MODE_LOCAL)
                 {
-                    settings_apply(&settings);
                     game_init(&game, MODE_LOCAL);
                     powerup_init(&powerups);
                     stats_init(&stats);
@@ -1071,8 +1023,8 @@ int main(void)
                 }
                 else if (game.mode == MODE_SOLO)
                 {
-                    settings_apply(&settings);
                     game_init(&game, MODE_SOLO);
+                    ai_init(&ai, current_ai_diff);
                     powerup_init(&powerups);
                     stats_init(&stats);
                     particles_clear();
@@ -1107,11 +1059,6 @@ int main(void)
         {
         case SCREEN_MENU:
             render_menu(menu_sel);
-            break;
-
-        case SCREEN_SETTINGS:
-            settings_ui_draw(&settings);
-            ui_back_button_draw();
             break;
 
         case SCREEN_SOLO_DIFF:

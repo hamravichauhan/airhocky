@@ -24,12 +24,12 @@
 #define COLLISION_RESTITUTION 0.92f
 #define MAX_SUBSTEPS 6
 
-/* ----- Runtime-overridable globals (set by settings_apply) ----- */
-extern int RT_WIN_SCORE;
-extern float RT_PUCK_MAX_SPEED;
-extern float RT_PUCK_FRICTION;
-extern float RT_PADDLE_ACCEL;
-extern float RT_PADDLE_MAX;
+/* ----- Calibrated physics and match constants ----- */
+#define RT_WIN_SCORE 7
+#define RT_PUCK_MAX_SPEED 1400.0f
+#define RT_PUCK_FRICTION 0.35f
+#define RT_PADDLE_ACCEL 8000.0f
+#define RT_PADDLE_MAX 1400.0f
 
 /* ----- Game modes ----- */
 typedef enum

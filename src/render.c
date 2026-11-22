@@ -505,7 +505,7 @@ void render_menu(int selected)
     ui_title("AIR HOCKEY", pulse * 0.6f);
     ui_subtitle("C / SEA Project - C Programming");
 
-    const char *items[9] = {
+    const char *items[8] = {
         "Solo Mode",
         "Local 2-Player",
         "Host LAN Game",
@@ -513,14 +513,13 @@ void render_menu(int selected)
         "Time Attack",
         "Tournament",
         "AI vs AI Demo",
-        "Settings",
         "Quit"};
 
     /* Panel behind menu */
-    Rectangle panel = {FIELD_W / 2 - 220, 160, 440, 9 * 44 + 40};
+    Rectangle panel = {FIELD_W / 2 - 220, 170, 440, 8 * 46 + 36};
     ui_panel(panel);
 
-    ui_menu(items, 9, selected, FIELD_W / 2, 185, 44);
+    ui_menu(items, 8, selected, FIELD_W / 2, 195, 46);
 
     ui_hint("W/S or Arrows to navigate   ENTER to select");
 }

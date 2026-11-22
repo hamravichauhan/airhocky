@@ -7,8 +7,6 @@
 #include "powerup.h"
 #include "trajectory.h"
 #include "stats.h"
-#include "settings.h"
-#include "settings_ui.h"
 #include "tournament.h"
 #include "ui.h"
 #include <stdio.h>
@@ -101,10 +99,6 @@ int main(void)
 
     themes_init();
     particles_init();
-
-    GameSettings settings;
-    settings_load(&settings);
-    settings_apply(&settings);
 
     GameState game;
     game_init(&game, MODE_LOCAL);
@@ -216,14 +210,7 @@ int main(void)
     render_time_attack_results(18, 18);
     snap("screenshots/06_time_attack.png");
 
-    // 7. SETTINGS MENU
-    BeginTextureMode(s_rt);
-    ClearBackground((Color){20, 25, 35, 255});
-    settings_ui_draw(&settings);
-    ui_back_button_draw();
-    snap("screenshots/07_settings_menu.png");
-
-    // 8. TOURNAMENT FORMAT SELECTION
+    // 7. TOURNAMENT FORMAT SELECTION
     BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     ui_background();
@@ -237,9 +224,9 @@ int main(void)
     DrawText("First to 3 match wins", FIELD_W / 2 - 90, 398, 16, UI_TEXT_DIM);
     ui_hint("1/2 to choose   ESC = back");
     ui_back_button_draw();
-    snap("screenshots/08_tournament_mode.png");
+    snap("screenshots/07_tournament_mode.png");
 
-    // 9. LAN MULTIPLAYER JOIN SCREEN (ROOM CODE)
+    // 8. LAN MULTIPLAYER JOIN SCREEN (ROOM CODE)
     BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     ui_background();
@@ -257,25 +244,25 @@ int main(void)
     DrawText("ENTER = Connect   CTRL+V = Paste   BACKSPACE = Delete", FIELD_W / 2 - 200, 400, 13, UI_TEXT_DARK);
     ui_hint("Press ESC to return to menu");
     ui_back_button_draw();
-    snap("screenshots/09_lan_join.png");
+    snap("screenshots/08_lan_join.png");
 
-    // 10. IN-GAME PAUSE & NAVIGATION MODAL
+    // 9. IN-GAME PAUSE & NAVIGATION MODAL
     BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     render_field(&game);
     powerup_draw(&powerups, 100);
     render_combo_overlay(&stats);
     draw_hud("Neon", 1);
-    snap("screenshots/10_pause_modal.png");
+    snap("screenshots/09_pause_modal.png");
 
-    // 11. IN-GAME QUIT/RESTART CONFIRMATION MODAL
+    // 10. IN-GAME QUIT/RESTART CONFIRMATION MODAL
     BeginTextureMode(s_rt);
     ClearBackground((Color){20, 25, 35, 255});
     render_field(&game);
     powerup_draw(&powerups, 100);
     render_combo_overlay(&stats);
     draw_hud("Neon", 2);
-    snap("screenshots/11_pause_confirm.png");
+    snap("screenshots/10_pause_confirm.png");
 
     UnloadRenderTexture(s_rt);
     CloseWindow();
